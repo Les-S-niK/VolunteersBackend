@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Annotated, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
+from pydantic_extra_types.phone_numbers import PhoneNumber
 
 from config import TOKEN_TYPE
 
@@ -53,5 +54,33 @@ class DecodedToken(BaseModel):
             title="Expiration Date",
             description="Decoded token expiration date.",
             examples=["2026-02-13 18:52"],
+        ),
+    ]
+
+
+class RussianPhoneNumber(PhoneNumber):
+    ## Starts with Russian region code (+7)
+    default_region_code = "RU"
+
+
+class UserAuth(BaseModel):
+    phone_number: Annotated[
+        RussianPhoneNumber,
+        Field(
+            default=...,
+            alias="phone_number",
+            title="Phone Number",
+            description="User's phone number representation.",
+            examples=["+79998881020"],
+        ),
+    ]
+    password: Annotated[
+        SecretStr,
+        Field(
+            default=...,
+            alias="password",
+            title="Password",
+            description="User's password",
+            examples=["VeryStrongPassword1234"],
         ),
     ]
