@@ -1,6 +1,5 @@
 from pwdlib import PasswordHash
 
-
 hasher: PasswordHash = PasswordHash.recommended()
 
 

@@ -4,10 +4,8 @@ from typing import Annotated, Any
 from pydantic import BaseModel, Field, SecretStr
 from pydantic_extra_types.phone_numbers import PhoneNumber
 
-from config import TOKEN_TYPE
 
-## Phone number field in encoded token.
-PHONE_NUMBER_FIELD: str = "phone_number"
+PHONE_NUMBER_KEY: str = "phone_number"
 
 
 class EncodedToken(BaseModel):
@@ -30,7 +28,7 @@ class EncodedToken(BaseModel):
             alias="token_type",
             title="Token Type",
             description="JWT token type.",
-            examples=[TOKEN_TYPE],
+            examples=["Bearer"],
         ),
     ]
 
@@ -43,7 +41,7 @@ class DecodedToken(BaseModel):
             alias="decoded_payload",
             title="Decoded Token Payload",
             description="Decoded token payload with user data.",
-            examples=[{"phone_number": "+79998882020"}],
+            examples=[{"phone_number": "+79998882020", "exp": "2026-02-15 20:47"}],
         ),
     ]
     expiration_date: Annotated[
