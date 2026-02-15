@@ -9,6 +9,7 @@ dependencies = [
     "fastapi-guard>=4.2.2",
     "phonenumbers>=9.0.23",
     "pydantic-extra-types>=2.11.0",
+    "pydantic-settings>=2.13.0",
     "pyjwt>=2.11.0",
     "python-multipart>=0.0.22",
     "sqlalchemy>=2.0.46",
