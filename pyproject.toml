@@ -7,11 +7,11 @@ requires-python = ">=3.14.2"
 dependencies = [
     "fastapi>=0.128.6",
     "fastapi-guard>=4.2.2",
-    "phonenumbers>=9.0.23",
-    "pydantic-extra-types>=2.11.0",
+    "pwdlib>=0.3.0",
     "pydantic-settings>=2.13.0",
     "pyjwt>=2.11.0",
     "python-multipart>=0.0.22",
+    "redis>=7.1.1",
     "sqlalchemy>=2.0.46",
     "uvicorn>=0.40.0",
 ]

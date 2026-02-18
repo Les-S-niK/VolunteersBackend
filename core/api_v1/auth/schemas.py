@@ -2,10 +2,8 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from pydantic import BaseModel, Field, SecretStr
-from pydantic_extra_types.phone_numbers import PhoneNumber
 
-
-PHONE_NUMBER_KEY: str = "phone_number"
+USER_ID_KEY: str = "user_id"
 
 
 class EncodedToken(BaseModel):
@@ -41,7 +39,7 @@ class DecodedToken(BaseModel):
             alias="decoded_payload",
             title="Decoded Token Payload",
             description="Decoded token payload with user data.",
-            examples=[{"phone_number": "+79998882020", "exp": "2026-02-15 20:47"}],
+            examples=[{USER_ID_KEY: 123, "exp": "2026-02-15 20:47"}],
         ),
     ]
     expiration_date: Annotated[
@@ -56,20 +54,15 @@ class DecodedToken(BaseModel):
     ]
 
 
-class RussianPhoneNumber(PhoneNumber):
-    ## Starts with Russian region code (+7)
-    default_region_code = "RU"
-
-
 class UserAuth(BaseModel):
-    phone_number: Annotated[
-        RussianPhoneNumber,
+    user_id: Annotated[
+        int,
         Field(
             default=...,
-            alias="phone_number",
-            title="Phone Number",
-            description="User's phone number representation.",
-            examples=["+79998881020"],
+            alias="user_id",
+            title="User ID",
+            description="User's id in the database.",
+            examples=[123, 199, 1],
         ),
     ]
     password: Annotated[
