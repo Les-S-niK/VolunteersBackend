@@ -16,3 +16,7 @@ def get_redis_client(db_name: str) -> Redis:
         password=redis_settings.PASSWORD.get_secret_value(),
         db=db_name,
     )
+
+
+def get_refresh_redis_client() -> Redis:
+    return get_redis_client(refresh_db_name)

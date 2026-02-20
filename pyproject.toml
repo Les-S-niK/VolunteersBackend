@@ -5,9 +5,11 @@ description = "VolunteersBackend is a backend part of an application that will b
 readme = "README.md"
 requires-python = ">=3.14.2"
 dependencies = [
+    "asyncpg>=0.31.0",
+    "faker>=40.4.0",
     "fastapi>=0.128.6",
     "fastapi-guard>=4.2.2",
-    "pwdlib>=0.3.0",
+    "pwdlib[argon2]>=0.3.0",
     "pydantic-settings>=2.13.0",
     "pyjwt>=2.11.0",
     "python-multipart>=0.0.22",

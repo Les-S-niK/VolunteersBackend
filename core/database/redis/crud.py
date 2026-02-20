@@ -16,7 +16,13 @@ async def redis_delete(redis: Redis, key: str) -> None:
         await connection.delete(key)
 
 
-async def redis_read(redis: Redis, key: str) -> Optional[dict[str, Any]]:
+async def redis_read_all(redis: Redis, key: str) -> Optional[dict[str, Any]]:
     async with redis.client() as connection:
         data: dict[str, Any] = await connection.hgetall(key)  ## type: ignore
         return data if data else None
+
+
+async def redis_read(redis: Redis, field: str, key: str) -> str | None:
+    async with redis.client() as connection:
+        data: str | None = await connection.hget(field, key)  ## type: ignore
+        return data

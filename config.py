@@ -67,6 +67,22 @@ class RedisSettings(BaseSettings):
     )
 
 
+class DBSettings(BaseSettings):
+    HOST: Annotated[str, Field(title="DB IP host")] = "0.0.0.0"
+    PORT: Annotated[int, Field(title="DB port", ge=1, le=65535)] = 6379
+    USER: Annotated[str, Field(title="DB username")] = ""
+    NAME: Annotated[str, Field(title="DB name")] = ""
+    PASSWORD: Annotated[SecretStr, Field(title="DB password", min_length=6)] = SecretStr("")
+
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="DB_", extra="ignore")
+
+    def get_db_url(self):
+        return (
+            f"postgresql+asyncpg://{self.USER}:{self.PASSWORD.get_secret_value()}@"
+            f"{self.HOST}:{self.PORT}/{self.NAME}"
+        )
+
+
 @lru_cache
 def get_token_settings() -> TokenSettings:
     return TokenSettings()
@@ -80,3 +96,7 @@ def get_api_settings() -> ApiSettings:
 @lru_cache
 def get_redis_settings() -> RedisSettings:
     return RedisSettings()
+
+@lru_cache
+def get_db_settings() -> DBSettings:
+    return DBSettings()
