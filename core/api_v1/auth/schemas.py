@@ -6,12 +6,37 @@ from pydantic import BaseModel, Field, SecretStr
 USER_ID_KEY: str = "user_id"
 
 
-class EncodedToken(BaseModel):
-    encoded_payload: Annotated[
+class EncodedTokensPair(BaseModel):
+    access_token: Annotated[
         str,
         Field(
             default=...,
-            alias="encoded_payload",
+            alias="access_token",
+            title="Encoded access token",
+            examples=[
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwaG9uZV9udW1iZXIiOiJ0ZWw6KzctOTk5LTg4OC0xMC0yMCIsImV4cCI6MTc3MTQyOTI5M30.t-Bu64pxxOyrDvs15fcN0fjcsSF_RErY2V3JbkCL0Sk"
+            ],
+        ),
+    ]
+    refresh_token: Annotated[
+        str,
+        Field(
+            default=...,
+            alias="refresh_token",
+            title="Encoded refresh token",
+            examples=[
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwaG9uZV9udW1iZXIiOiJ0ZWw6KzctOTk5LTg4OC0xMC0yMCIsImV4cCI6MTc3MTQyOTI5M30.t-Bu64pxxOyrDvs15fcN0fjcsSF_RErY2V3JbkCL0Sk"
+            ],
+        ),
+    ]
+
+
+class EncodedToken(BaseModel):
+    token: Annotated[
+        str,
+        Field(
+            default=...,
+            alias="token",
             title="Encoded Token Payload",
             description="Encoded token payload with user data.",
             examples=[

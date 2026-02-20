@@ -4,7 +4,7 @@ from typing import Any, Optional
 import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidKeyError
 
-from core.api_v1.auth.schemas import DecodedToken
+from core.api_v1.auth.schemas import DecodedToken, EncodedTokensPair
 
 
 def create_access_token(
@@ -54,3 +54,27 @@ def decode_access_token(
         )
 
     return DecodedToken(decoded_payload=decoded_payload, expiration_date=expires)
+
+
+def create_tokens_pair(
+    data: dict[str, Any],
+    access_expires_delta: timedelta,
+    refresh_expires_delta: timedelta,
+    access_key: str,
+    refresh_key: str,
+    algorithm: str,
+) -> EncodedTokensPair:
+    return EncodedTokensPair(
+        access_token=create_access_token(
+            data=data,
+            expires_delta=access_expires_delta,
+            key=access_key,
+            algorithm=algorithm,
+        ),
+        refresh_token=create_access_token(
+            data=data,
+            expires_delta=refresh_expires_delta,
+            key=refresh_key,
+            algorithm=algorithm,
+        ),
+    )
