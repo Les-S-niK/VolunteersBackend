@@ -1,9 +1,16 @@
 from datetime import datetime
+from enum import StrEnum
 from typing import Annotated, Any
 
 from pydantic import BaseModel, Field, SecretStr
 
+
 USER_ID_KEY: str = "user_id"
+
+
+class TokenTypesEnum(StrEnum):
+    access = "access"
+    refresh = "refresh"
 
 
 class EncodedTokensPair(BaseModel):
@@ -51,7 +58,7 @@ class EncodedToken(BaseModel):
             alias="token_type",
             title="Token Type",
             description="JWT token type.",
-            examples=["Bearer"],
+            examples=["access", "refresh"],
         ),
     ]
 

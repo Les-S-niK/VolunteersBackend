@@ -1,12 +1,8 @@
-from typing import Annotated, Any, Awaitable
+from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
-from fastapi.security import OAuth2PasswordBearer
-from jwt import exceptions
 from pydantic import SecretStr
 from redis.asyncio import Redis
-from jwt.exceptions import PyJWTError
-from sqlalchemy import TwoPhaseTransaction
 
 from config import TokenSettings, get_token_settings
 from core.api_v1.auth.hashing import hash_password, verify_password
@@ -16,28 +12,26 @@ from core.api_v1.auth.schemas import (
     DecodedToken,
     EncodedToken,
     EncodedTokensPair,
+    TokenTypesEnum,
     UserAuth,
 )
 from core.api_v1.auth.utils import try_verify_password
-from core.api_v1.shared_schemas import NotFoundError, InvalidRefreshTokenError
-from core.database.redis import get_refresh_redis_client, redis_create
-from core.database.redis.crud import redis_read
+from core.api_v1.error_schemas import InvalidRefreshTokenError, NotFoundError
+from core.database.redis import get_refresh_redis_client, redis_create, redis_read
 from core.database.sqlalchemy.models import User
 
-auth_router: APIRouter = APIRouter(prefix="/api/v1/auth", tags=["Authenticate", "User"])
-
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="create_tokens", description="Create tokens handler"
-)
+auth_router: APIRouter = APIRouter(prefix="/api/v1/auth", tags=["Authenticate"])
 
 
 SECONDS_IN_DAY: int = 86400
 
 
-@auth_router.post(
+@auth_router.get(
     path="/refresh/",
-    description="Get access token by provided refresh token.",
-    responses={401: {"model": InvalidRefreshTokenError, "detail": "Invalid refresh token."}},
+    description="Get access token by provided refresh token in the cookies.",
+    responses={
+        401: {"model": InvalidRefreshTokenError, "detail": "Invalid refresh token."}
+    },
 )
 async def refresh_handler(
     request: Request,
@@ -54,13 +48,12 @@ async def refresh_handler(
     invalid_token_exception: HTTPException = HTTPException(
         status_code=401, detail="Invalid refresh token."
     )
-    try:
-        payload: DecodedToken = decode_access_token(
-            encoded_jwt=refresh_token,
-            key=token_settings.REFRESH_SECRET_KEY.get_secret_value(),
-            algorithms=[token_settings.ALGORITHM],
-        )
-    except PyJWTError:
+    payload: DecodedToken | None = decode_access_token(
+        encoded_jwt=refresh_token,
+        key=token_settings.REFRESH_SECRET_KEY.get_secret_value(),
+        algorithms=[token_settings.ALGORITHM],
+    )
+    if not payload:
         raise invalid_token_exception
 
     user_id: int | None = payload.decoded_payload.get(USER_ID_KEY)
@@ -70,13 +63,12 @@ async def refresh_handler(
     token_hash: str | None = await redis_read(
         redis=redis_client, field="refresh", key=str(user_id)
     )
-    if not token_hash:
+    if not token_hash or not verify_password(refresh_token, token_hash):
+        response.delete_cookie("refresh_token")
         raise invalid_token_exception
-    if not verify_password(refresh_token, token_hash):
-        raise HTTPException(status_code=401, detail="Refresh token revoked.")
 
     tokens_pair: EncodedTokensPair = create_tokens_pair(
-        data=payload.decoded_payload,
+        data={USER_ID_KEY: user_id},
         access_expires_delta=token_settings.access_token_expire,
         access_key=token_settings.ACCESS_SECRET_KEY.get_secret_value(),
         refresh_expires_delta=token_settings.refresh_token_expire,
@@ -87,11 +79,13 @@ async def refresh_handler(
     redis_value_to_write: dict[str, str] = {
         str(user_id): hash_password(tokens_pair.refresh_token),
     }
+
+    refresh_ttl: int = token_settings.REFRESH_EXPIRE_DAYS * SECONDS_IN_DAY
     await redis_create(
         redis=redis_client,
         key="refresh",
         value=redis_value_to_write,
-        ttl=token_settings.REFRESH_EXPIRE_DAYS * SECONDS_IN_DAY,
+        ttl=refresh_ttl,
     )
 
     response.set_cookie(
@@ -100,17 +94,20 @@ async def refresh_handler(
         httponly=True,
         secure=True,
         samesite="strict",
+        max_age=refresh_ttl,
     )
 
-    return EncodedToken(token=tokens_pair.access_token, token_type=token_settings.TYPE)
+    return EncodedToken(
+        token=tokens_pair.access_token, token_type=TokenTypesEnum.access
+    )
 
 
 @auth_router.post(
-    path="/create_tokens/",
+    path="/login/",
     description="Create access and refresh tokens based on user data.",
     responses={404: {"model": NotFoundError, "description": "Not found"}},
 )
-async def create_tokens_handler(
+async def login_handler(
     response: Response,
     user_auth: Annotated[UserAuth, Body(title="User auth model.")],
     redis_client: Annotated[Redis, Depends(get_refresh_redis_client)],
@@ -127,10 +124,9 @@ async def create_tokens_handler(
     if not user:
         raise not_found_exception
     try_verify_password(user_password, user.password, not_found_exception)
-    data_to_encode: dict[str, Any] = {USER_ID_KEY: user_id}
 
     tokens_pair: EncodedTokensPair = create_tokens_pair(
-        data=data_to_encode,
+        data={USER_ID_KEY: user_id},
         access_expires_delta=token_settings.access_token_expire,
         access_key=token_settings.ACCESS_SECRET_KEY.get_secret_value(),
         refresh_expires_delta=token_settings.refresh_token_expire,
@@ -141,11 +137,12 @@ async def create_tokens_handler(
         str(user_id): hash_password(tokens_pair.refresh_token),
     }
 
+    refresh_ttl: int = token_settings.REFRESH_EXPIRE_DAYS * SECONDS_IN_DAY
     await redis_create(
         redis=redis_client,
         key="refresh",
         value=redis_value_to_write,
-        ttl=token_settings.REFRESH_EXPIRE_DAYS * SECONDS_IN_DAY,
+        ttl=refresh_ttl,
     )
 
     response.set_cookie(
@@ -154,6 +151,9 @@ async def create_tokens_handler(
         httponly=True,
         secure=True,
         samesite="strict",
+        max_age=refresh_ttl,
     )
 
-    return EncodedToken(token=tokens_pair.access_token, token_type=token_settings.TYPE)
+    return EncodedToken(
+        token=tokens_pair.access_token, token_type=TokenTypesEnum.access
+    )

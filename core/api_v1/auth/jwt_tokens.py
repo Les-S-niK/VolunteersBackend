@@ -32,7 +32,7 @@ def create_access_token(
 
 def decode_access_token(
     encoded_jwt: str, key: str, algorithms: list[str]
-) -> DecodedToken:
+) -> DecodedToken | None:
     """Decodes given jwt token and returns it's data and it's expiration time.
 
     Args:
@@ -43,15 +43,16 @@ def decode_access_token(
     Returns:
         DecodedToken - Token data and it's expiration time.
     """
-    decoded_payload: dict[str, Any] = jwt.decode(
-        jwt=encoded_jwt, key=key, algorithms=algorithms
-    )
-
-    expires: Optional[datetime] = decoded_payload.get("exp")
-    if not expires:
-        raise ExpiredSignatureError(
-            "Can't find expired signature in the token payload."
+    try: 
+        decoded_payload: dict[str, Any] = jwt.decode(
+            jwt=encoded_jwt, key=key, algorithms=algorithms
         )
+    except jwt.PyJWTError:
+        return None
+
+    expires: datetime | None = decoded_payload.get("exp")
+    if not expires:
+        return None
 
     return DecodedToken(decoded_payload=decoded_payload, expiration_date=expires)
 
