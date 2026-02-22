@@ -27,7 +27,6 @@ class ApiSettings(BaseSettings):
 
 
 class TokenSettings(BaseSettings):
-    TYPE: Annotated[str, Field(title="Access token type")] = "Bearer"
     REFRESH_EXPIRE_DAYS: Annotated[
         int, Field(title="Refresh token expiration time in days", ge=1, le=30)
     ] = 30
@@ -72,7 +71,9 @@ class DBSettings(BaseSettings):
     PORT: Annotated[int, Field(title="DB port", ge=1, le=65535)] = 6379
     USER: Annotated[str, Field(title="DB username")] = ""
     NAME: Annotated[str, Field(title="DB name")] = ""
-    PASSWORD: Annotated[SecretStr, Field(title="DB password", min_length=6)] = SecretStr("")
+    PASSWORD: Annotated[SecretStr, Field(title="DB password", min_length=6)] = (
+        SecretStr("")
+    )
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="DB_", extra="ignore")
 
@@ -96,6 +97,7 @@ def get_api_settings() -> ApiSettings:
 @lru_cache
 def get_redis_settings() -> RedisSettings:
     return RedisSettings()
+
 
 @lru_cache
 def get_db_settings() -> DBSettings:

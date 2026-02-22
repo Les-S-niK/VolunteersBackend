@@ -5,12 +5,11 @@ from core.api_v1.auth.jwt_tokens import (
     decode_access_token,
 )
 from core.api_v1.auth.schemas import DecodedToken, EncodedToken
-from core.api_v1.auth.utils import try_verify_password
-from core.api_v1.auth.views import auth_router, oauth2_scheme
+from core.api_v1.auth.utils import try_verify_password, get_current_user
+from core.api_v1.auth.views import auth_router
 
 __all__ = [
     "try_verify_password",
-    "oauth2_scheme",
     "auth_router",
     "DecodedToken",
     "EncodedToken",
@@ -19,4 +18,5 @@ __all__ = [
     "create_access_token",
     "decode_access_token",
     "create_tokens_pair",
+    "get_current_user"
 ]
