@@ -30,7 +30,10 @@ SECONDS_IN_DAY: int = 86400
     path="/refresh/",
     description="Get access token by provided refresh token in the cookies.",
     responses={
-        401: {"model": InvalidRefreshTokenError, "detail": "Invalid refresh token."}
+        401: {
+            "model": InvalidRefreshTokenError,
+            "description": "Invalid refresh token.",
+        }
     },
 )
 async def refresh_handler(

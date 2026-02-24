@@ -4,19 +4,25 @@ from pydantic import BaseModel, Field
 
 
 class ErrorResponse(BaseModel):
-    detail: Annotated[
+    error: Annotated[
         str,
         Field(
             default="Unspecified error",
-            alias="detail",
-            title="Error details.",
+            alias="error",
+            title="Error information.",
         ),
     ]
+    details: str | None
 
 
 class NotFoundError(ErrorResponse):
-    detail: str = "Not found"
+    error: str = "Not found"
 
 
-class InvalidRefreshTokenError(ErrorResponse):
-    detail: str = "Invalid refresh token"
+class NotAuthorized(ErrorResponse):
+    error: str = "Not authorized"
+    details: str | None = "You are not authorized to access this resource."
+
+
+class InvalidRefreshTokenError(NotAuthorized):
+    error: str = "Invalid refresh token"

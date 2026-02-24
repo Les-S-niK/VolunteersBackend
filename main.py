@@ -6,12 +6,14 @@ from uvicorn import run
 
 from config import ApiSettings, get_api_settings
 from core.api_v1.auth import auth_router, get_current_user
+from core.api_v1.profile import profile_router
 from core.database.sqlalchemy.models import User
 
 api_settings: ApiSettings = get_api_settings()
 
 app: FastAPI = FastAPI(debug=api_settings.DEBUG)
 app.include_router(auth_router)
+app.include_router(profile_router)
 
 
 @app.get("/index/")
