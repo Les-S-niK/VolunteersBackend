@@ -33,7 +33,7 @@ async def fill_fake_events():
 async def fill_fake_links():
     for _ in range(3000):
         await Link.add(
-            link=fake.url(), is_checked=bool(randint(0, 4)), is_cool=bool(randint(0, 4))
+            link=fake.url(), is_prohibited=bool(randint(0, 4)), user_id=randint(300, 400)
         )
 
 
