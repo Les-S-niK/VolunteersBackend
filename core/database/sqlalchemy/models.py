@@ -1,11 +1,9 @@
-from sqlalchemy.orm import Mapped, mapped_column
-
-from sqlalchemy import BigInteger, SmallInteger, Date
-from sqlalchemy import ForeignKey
-
 import datetime
 
-from core.database.db import Base
+from sqlalchemy import BigInteger, Date, ForeignKey, SmallInteger
+from sqlalchemy.orm import Mapped, mapped_column
+
+from core.database.sqlalchemy.db import Base
 
 
 class User(Base):
@@ -31,8 +29,8 @@ class Event(Base):
 class UserEvent(Base):
     __tablename__ = "users_events"
 
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey('users.id'))
-    event_id: Mapped[int] = mapped_column(BigInteger, ForeignKey('events.id'))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"))
+    event_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("events.id"))
 
 
 class Link(Base):
