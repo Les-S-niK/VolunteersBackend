@@ -19,7 +19,7 @@ engine: AsyncEngine = create_async_engine(url=settings.get_db_url())  # echo=Tru
 
 class CRUD:
     __engine = engine
-    __async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
+    session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
     @classmethod
     def engine(cls) -> AsyncEngine:
@@ -27,7 +27,7 @@ class CRUD:
 
     @classmethod
     def async_session_maker(cls) -> async_sessionmaker[AsyncSession]:
-        return cls.__async_session_maker
+        return cls.session_maker
 
     @classmethod
     def _build_conditions(cls, **kwargs) -> list[Any]:
@@ -44,7 +44,7 @@ class CRUD:
         cls: Type[T], session: Optional[AsyncSession] = None, **kwargs
     ) -> Optional[T]:
         own_session = session is None
-        session = session or cls.__async_session_maker()
+        session = session or cls.session_maker()
 
         try:
             instance = cls(**kwargs)
@@ -71,7 +71,7 @@ class CRUD:
         cls: Type[T], session: Optional[AsyncSession] = None, **filters
     ) -> Optional[List[T]]:
         own_session = session is None
-        session = session or cls.__async_session_maker()
+        session = session or cls.session_maker()
 
         try:
             conditions = cls._build_conditions(**filters)
@@ -93,7 +93,7 @@ class CRUD:
         cls: Type[T], session: Optional[AsyncSession] = None, **filters
     ) -> Optional[T]:
         own_session = session is None
-        session = session or cls.__async_session_maker()
+        session = session or cls.session_maker()
 
         try:
             conditions = cls._build_conditions(**filters)
@@ -127,7 +127,7 @@ class CRUD:
         cls: Type[T], id: int, session: Optional[AsyncSession] = None, **values
     ) -> bool:
         own_session = session is None
-        session = session or cls.__async_session_maker()
+        session = session or cls.session_maker()
 
         try:
             stmt = (
@@ -159,7 +159,7 @@ class CRUD:
         cls: Type[T], id: int, session: Optional[AsyncSession] = None
     ) -> bool:
         own_session = session is None
-        session = session or cls.__async_session_maker()
+        session = session or cls.session_maker()
 
         try:
             stmt = delete(cls).where(cls.id == id)
@@ -192,7 +192,7 @@ class CRUD:
         cls: Type[T], session: Optional[AsyncSession] = None, **filters
     ) -> int:
         own_session = session is None
-        session = session or cls.__async_session_maker()
+        session = session or cls.session_maker()
 
         try:
             conditions = cls._build_conditions(**filters)
@@ -226,5 +226,12 @@ async def init_db():
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+    except Exception as a:
+        print(a)
+
+async def drop_db():
+    try:
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.drop_all)
     except Exception as a:
         print(a)

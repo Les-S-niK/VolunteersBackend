@@ -40,7 +40,7 @@ async def user_events_handler(
         if not event:
             continue
         event_model: EventModel = EventModel(
-            id=event.id, name=event.event_name, date=event.date
+            id=event.id, name=event.name, date=event.date
         )
         events.events.append(event_model)
 
