@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from pydantic import SecretStr
 from redis.asyncio import Redis
 
-from config import TokenSettings, get_token_settings
+from config import ApiSettings, TokenSettings, get_token_settings, get_api_settings
 from core.api_v1.auth.hashing import hash_password, verify_password
 from core.api_v1.auth.jwt_tokens import create_tokens_pair, decode_access_token
 from core.api_v1.auth.schemas import (
@@ -37,6 +37,7 @@ async def refresh_handler(
     request: Request,
     response: Response,
     token_settings: Annotated[TokenSettings, Depends(get_token_settings)],
+    api_settings: Annotated[ApiSettings, Depends(get_api_settings)],
     redis_db: Annotated[Redis, Depends(get_refresh_redis)],
 ) -> EncodedToken:
     refresh_token: str | None = request.cookies.get("refresh_token")
@@ -87,9 +88,10 @@ async def refresh_handler(
         key="refresh_token",
         value=tokens_pair.refresh_token,
         httponly=True,
-        secure=True,
+        secure=api_settings.SECURE,
         samesite="strict",
         max_age=refresh_ttl,
+        path="/api/v1/auth/",
     )
 
     return EncodedToken(
@@ -105,8 +107,9 @@ async def refresh_handler(
 async def login_handler(
     response: Response,
     user_auth: Annotated[UserAuth, Body(title="User auth model.")],
-    redis_db: Annotated[Redis, Depends(get_refresh_redis)],
     token_settings: Annotated[TokenSettings, Depends(get_token_settings)],
+    api_settings: Annotated[ApiSettings, Depends(get_api_settings)],
+    redis_db: Annotated[Redis, Depends(get_refresh_redis)],
 ) -> EncodedToken:
     user_id: int = user_auth.user_id
     user_password: SecretStr = user_auth.password
@@ -141,9 +144,10 @@ async def login_handler(
         key="refresh_token",
         value=tokens_pair.refresh_token,
         httponly=True,
-        secure=True,
+        secure=api_settings.SECURE,
         samesite="strict",
         max_age=refresh_ttl,
+        path="/api/v1/auth/",
     )
 
     return EncodedToken(
