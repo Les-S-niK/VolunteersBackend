@@ -7,19 +7,32 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ApiSettings(BaseSettings):
-    HOST: Annotated[str, Field(title="Api IP host")] = "0.0.0.0"
-    PORT: Annotated[int, Field(title="Api port", ge=1, le=65535)] = 8080
+    HOST: Annotated[str, Field(default="127.0.0.1", title="Api IP host")] = "127.0.0.1"
+    PORT: Annotated[int, Field(default=8080, title="Api port", ge=1, le=65535)] = 8080
     RELOAD: Annotated[
         bool,
         Field(
+            default=False,
             title="Enable auto-reload",
             description="Fast API auto-reload for developing.",
         ),
     ] = False
     DEBUG: Annotated[
         bool,
-        Field(title="Enable DEBUG mode", description="Enable Fast API debug mode."),
+        Field(
+            default=False,
+            title="Enable DEBUG mode",
+            description="Enable Fast API debug mode.",
+        ),
     ] = False
+    SECURE: Annotated[
+        bool,
+        Field(
+            default=True,
+            title="Secure flag. (HTTPS)",
+            description="Force HTTPS secure connection. (For cookies for example.)",
+        ),
+    ] = True
 
     model_config = SettingsConfigDict(
         env_file=".env", env_prefix="API_", extra="ignore"
@@ -28,17 +41,21 @@ class ApiSettings(BaseSettings):
 
 class TokenSettings(BaseSettings):
     REFRESH_EXPIRE_DAYS: Annotated[
-        int, Field(title="Refresh token expiration time in days", ge=1, le=30)
+        int,
+        Field(default=30, title="Refresh token expiration time in days", ge=1, le=30),
     ] = 30
     ACCESS_EXPIRE_MINUTES: Annotated[
-        int, Field(title="Access token expiration time in days", ge=1, le=60)
+        int,
+        Field(default=15, title="Access token expiration time in days", ge=1, le=60),
     ] = 15
-    ALGORITHM: Annotated[str, Field(title="Access token algorithm type")] = "HS256"
+    ALGORITHM: Annotated[
+        str, Field(default="HS256", title="Access token algorithm type")
+    ] = "HS256"
     ACCESS_SECRET_KEY: Annotated[
-        SecretStr, Field(title="Token SECRET key", min_length=32)
+        SecretStr, Field(default=SecretStr(""), title="Token SECRET key", min_length=32)
     ] = SecretStr("")
     REFRESH_SECRET_KEY: Annotated[
-        SecretStr, Field(title="Token SECRET key", min_length=32)
+        SecretStr, Field(default=SecretStr(""), title="Token SECRET key", min_length=32)
     ] = SecretStr("")
 
     @property
@@ -55,10 +72,13 @@ class TokenSettings(BaseSettings):
 
 
 class RedisSettings(BaseSettings):
-    HOST: Annotated[str, Field(title="Redis IP host")] = "0.0.0.0"
-    PORT: Annotated[int, Field(title="Redis port", ge=1, le=65535)] = 6379
+    HOST: Annotated[str, Field(default="127.0.0.1", title="Redis IP host")] = (
+        "127.0.0.1"
+    )
+    PORT: Annotated[int, Field(default=6379, title="Redis port", ge=1, le=65535)] = 6379
     PASSWORD: Annotated[
-        SecretStr, Field(title="Redis database password", min_length=6)
+        SecretStr,
+        Field(default=SecretStr(""), title="Redis database password", min_length=6),
     ] = SecretStr("")
 
     model_config = SettingsConfigDict(
@@ -67,13 +87,13 @@ class RedisSettings(BaseSettings):
 
 
 class DBSettings(BaseSettings):
-    HOST: Annotated[str, Field(title="DB IP host")] = "0.0.0.0"
-    PORT: Annotated[int, Field(title="DB port", ge=1, le=65535)] = 6379
-    USER: Annotated[str, Field(title="DB username")] = ""
-    NAME: Annotated[str, Field(title="DB name")] = ""
-    PASSWORD: Annotated[SecretStr, Field(title="DB password", min_length=6)] = (
-        SecretStr("")
-    )
+    HOST: Annotated[str, Field(default="127.0.0.1", title="DB IP host")] = "127.0.0.1"
+    PORT: Annotated[int, Field(default=6379, title="DB port", ge=1, le=65535)] = 6379
+    USER: Annotated[str, Field(default="", title="DB username")] = ""
+    NAME: Annotated[str, Field(default="", title="DB name")] = ""
+    PASSWORD: Annotated[
+        SecretStr, Field(default=SecretStr(""), title="DB password", min_length=6)
+    ] = SecretStr("")
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="DB_", extra="ignore")
 
