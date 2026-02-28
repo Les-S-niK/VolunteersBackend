@@ -1,6 +1,17 @@
 import datetime
 
-from sqlalchemy import BigInteger, Boolean, Date, ForeignKey, SmallInteger, Text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Date,
+    ForeignKey,
+    Select,
+    SmallInteger,
+    delete,
+    select,
+)
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import Mapped, MappedColumn, mapped_column
 
 from core.database.sqlalchemy.db import Base
@@ -44,9 +55,36 @@ class Link(Base):
         doc="Is link prohibited? True - yes, False - no. None - not checked.",
     )
     user_id: MappedColumn[int | None] = mapped_column(
-        Text,
+        BigInteger,
         ForeignKey("users.id"),
         nullable=True,
         default=None,
         doc="The user who should check this link. None - no one took this link to check it.",
     )
+
+    @classmethod
+    async def clear_table(cls: type[Link]):
+        stmt = delete(cls)
+        async with cls.session_maker() as session:
+            await session.execute(stmt)
+            await session.commit()
+
+    @classmethod
+    async def get_first_unverified(
+        cls: type[Link], session: AsyncSession | None = None
+    ) -> Link | None:
+        own_session: bool = session is None
+        session = session or cls.session_maker()
+
+        try:
+            stmt: Select[tuple[Link]] = select(cls).where(cls.is_prohibited.is_(None))
+            result = await session.execute(stmt)
+            return result.scalars().first()
+
+        except SQLAlchemyError as e:
+            print(e)
+            return None
+
+        finally:
+            if own_session:
+                await session.close()
