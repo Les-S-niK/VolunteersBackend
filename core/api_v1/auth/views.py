@@ -16,8 +16,8 @@ from core.api_v1.auth.schemas import (
     UserAuth,
 )
 from core.api_v1.auth.utils import try_verify_password
-from core.api_v1.error_schemas import InvalidRefreshTokenError, NotFoundError
-from core.database.redis import get_refresh_redis_client, redis_create, redis_read
+from core.api_v1.error_schemas import InvalidRefreshTokenError, NotAuthorized
+from core.database.redis import get_refresh_redis, RedisCRUD
 from core.database.sqlalchemy.models import User
 
 auth_router: APIRouter = APIRouter(prefix="/api/v1/auth", tags=["Authenticate"])
@@ -26,21 +26,18 @@ auth_router: APIRouter = APIRouter(prefix="/api/v1/auth", tags=["Authenticate"])
 SECONDS_IN_DAY: int = 86400
 
 
-@auth_router.get(
+@auth_router.post(
     path="/refresh/",
     description="Get access token by provided refresh token in the cookies.",
     responses={
-        401: {
-            "model": InvalidRefreshTokenError,
-            "description": "Invalid refresh token.",
-        }
+        401: {"model": InvalidRefreshTokenError, "detail": "Invalid refresh token."}
     },
 )
 async def refresh_handler(
     request: Request,
     response: Response,
     token_settings: Annotated[TokenSettings, Depends(get_token_settings)],
-    redis_client: Annotated[Redis, Depends(get_refresh_redis_client)],
+    redis_db: Annotated[Redis, Depends(get_refresh_redis)],
 ) -> EncodedToken:
     refresh_token: str | None = request.cookies.get("refresh_token")
     if not refresh_token:
@@ -63,11 +60,10 @@ async def refresh_handler(
     if not user_id:
         raise invalid_token_exception
 
-    token_hash: str | None = await redis_read(
-        redis=redis_client, field="refresh", key=str(user_id)
-    )
+    async with RedisCRUD(redis_db) as redis:
+        token_hash: str | None = await redis.read(str(user_id))
+
     if not token_hash or not verify_password(refresh_token, token_hash):
-        response.delete_cookie("refresh_token")
         raise invalid_token_exception
 
     tokens_pair: EncodedTokensPair = create_tokens_pair(
@@ -79,17 +75,13 @@ async def refresh_handler(
         algorithm=token_settings.ALGORITHM,
     )
 
-    redis_value_to_write: dict[str, str] = {
-        str(user_id): hash_password(tokens_pair.refresh_token),
-    }
-
-    refresh_ttl: int = token_settings.REFRESH_EXPIRE_DAYS * SECONDS_IN_DAY
-    await redis_create(
-        redis=redis_client,
-        key="refresh",
-        value=redis_value_to_write,
-        ttl=refresh_ttl,
-    )
+    refresh_ttl: int = int(token_settings.refresh_token_expire.total_seconds())
+    async with RedisCRUD(redis_db) as redis:
+        await redis.create(
+            key=str(user_id),
+            value=hash_password(tokens_pair.refresh_token),
+            ttl_seconds=refresh_ttl,
+        )
 
     response.set_cookie(
         key="refresh_token",
@@ -108,12 +100,12 @@ async def refresh_handler(
 @auth_router.post(
     path="/login/",
     description="Create access and refresh tokens based on user data.",
-    responses={404: {"model": NotFoundError, "description": "Not found"}},
+    responses={401: {"model": NotAuthorized, "description": "Not authorized"}},
 )
 async def login_handler(
     response: Response,
     user_auth: Annotated[UserAuth, Body(title="User auth model.")],
-    redis_client: Annotated[Redis, Depends(get_refresh_redis_client)],
+    redis_db: Annotated[Redis, Depends(get_refresh_redis)],
     token_settings: Annotated[TokenSettings, Depends(get_token_settings)],
 ) -> EncodedToken:
     user_id: int = user_auth.user_id
@@ -122,7 +114,7 @@ async def login_handler(
     user: User | None = await User.get_by_id(user_id)
 
     not_found_exception: HTTPException = HTTPException(
-        status_code=404, detail="User not found."
+        status_code=401, detail="Not authorized"
     )
     if not user:
         raise not_found_exception
@@ -136,17 +128,14 @@ async def login_handler(
         refresh_key=token_settings.REFRESH_SECRET_KEY.get_secret_value(),
         algorithm=token_settings.ALGORITHM,
     )
-    redis_value_to_write: dict[str, str] = {
-        str(user_id): hash_password(tokens_pair.refresh_token),
-    }
 
-    refresh_ttl: int = token_settings.REFRESH_EXPIRE_DAYS * SECONDS_IN_DAY
-    await redis_create(
-        redis=redis_client,
-        key="refresh",
-        value=redis_value_to_write,
-        ttl=refresh_ttl,
-    )
+    refresh_ttl: int = int(token_settings.refresh_token_expire.total_seconds())
+    async with RedisCRUD(redis_db) as redis:
+        await redis.create(
+            key=str(user_id),
+            value=hash_password(tokens_pair.refresh_token),
+            ttl_seconds=refresh_ttl,
+        )
 
     response.set_cookie(
         key="refresh_token",
