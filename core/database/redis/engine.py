@@ -9,7 +9,7 @@ refresh_db_name: int = 1
 
 
 @lru_cache
-def get_redis_client(db_name: str) -> Redis:
+def get_redis(db_name: str) -> Redis:
     return Redis(
         host=redis_settings.HOST,
         port=redis_settings.PORT,
@@ -18,5 +18,5 @@ def get_redis_client(db_name: str) -> Redis:
     )
 
 
-def get_refresh_redis_client() -> Redis:
-    return get_redis_client(refresh_db_name)
+def get_refresh_redis() -> Redis:
+    return get_redis(refresh_db_name)
