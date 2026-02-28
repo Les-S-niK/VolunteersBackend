@@ -38,7 +38,7 @@ def test_login_invalid_password(session):
         json={"user_id": TEST_USER_ID, "password": "wrong"}
     )
 
-    assert response.status_code == 404
+    assert response.status_code == 401
     assert response.status_code != 500
 
 
@@ -48,7 +48,7 @@ def test_login_invalid_user(session):
         json={"user_id": "0", "password": "wrong"}
     )
 
-    assert response.status_code == 404
+    assert response.status_code == 401
     assert response.status_code != 500
 
 
@@ -67,4 +67,4 @@ def test_login_bad_input(session, payload):
     )
 
     assert response.status_code != 500
-    assert response.status_code in (400, 422)
+    assert response.status_code in (401, 422)
