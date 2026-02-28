@@ -9,7 +9,7 @@ fake = Faker()
 
 
 async def fill_fake_users():
-    for _ in range(1):
+    for i in range(100):
         await User.add(
             full_name=fake.name(),
             birth=fake.date_of_birth(),
@@ -18,22 +18,27 @@ async def fill_fake_users():
             phone_number=f"+7{randint(1_000_000_000, 10_000_000_000)}",
             points=randint(0, 100),
             telegram_id=randint(100_000_000, 1_000_000_000) if randint(0, 4) else None,
-            password=hash_password(fake.password()),
+            password=hash_password(str(i + 1)),
         )
 
 
 async def fill_fake_events():
-    for _ in range(30):
+    for _ in range(100):
         await Event.add(
-            event_name=hex(randint(1024, 65536))[2:],
+            name=hex(randint(1024, 65536))[2:],
             date=fake.date_between(),
         )
 
 
 async def fill_fake_links():
-    for _ in range(3000):
+    for i in range(100):
+        is_url_none: bool = bool(randint(0, 1))
+        is_url_proh: bool = bool(randint(0, 1))
+
         await Link.add(
-            link=fake.url(), is_prohibited=bool(randint(0, 4)), user_id=randint(300, 400)
+            link=fake.url(),
+            is_prohibited=None if is_url_none else is_url_proh,
+            user_id=i + 1,
         )
 
 
@@ -41,6 +46,8 @@ async def fill_fake_users_events():
     users = await User.get_all()
     events = await Event.get_all()
 
+    if not users or not events:
+        return
     for user in users:
         if randint(0, 2):
             for event in events:
