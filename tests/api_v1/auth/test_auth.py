@@ -92,7 +92,6 @@ def test_refresh_success(session, valid_credentials):
 
 
 def test_refresh_without_refresh_token(session):
-    """Test refresh endpoint without refresh_token cookie"""
     response = session.post(f"{BASE_URL}/api/v1/auth/refresh/")
     
     assert response.status_code == 401
@@ -100,7 +99,6 @@ def test_refresh_without_refresh_token(session):
 
 
 def test_refresh_with_invalid_refresh_token(session):
-    """Test refresh endpoint with malformed/invalid refresh token"""
     session.cookies.set("refresh_token", "invalid.token.value")
     response = session.post(f"{BASE_URL}/api/v1/auth/refresh/")
     
@@ -109,7 +107,6 @@ def test_refresh_with_invalid_refresh_token(session):
 
 
 def test_refresh_with_tampered_token(session, valid_credentials):
-    """Test refresh endpoint with tampered refresh token"""
     login_response = session.post(
         f"{BASE_URL}/api/v1/auth/login/",
         json=valid_credentials
