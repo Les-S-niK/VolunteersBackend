@@ -4,9 +4,11 @@ from config import get_api_settings
 
 
 settings = get_api_settings()
+
 BASE_URL = f"http://{settings.HOST}:{settings.PORT}"
 TEST_USER_ID = "1"
 TEST_USER_PASSWORD = "1"
+TEST_DELAY = 1
 
 @pytest.fixture
 def session():
