@@ -70,15 +70,16 @@ class Link(Base):
             await session.commit()
 
     @classmethod
-    async def get_first_unverified(
-        cls: type[Link], session: AsyncSession | None = None
+    async def _execute_get_one_statement(
+        cls: type[Link],
+        statement: Select[tuple[Link]],
+        session: AsyncSession | None = None,
     ) -> Link | None:
         own_session: bool = session is None
         session = session or cls.session_maker()
 
         try:
-            stmt: Select[tuple[Link]] = select(cls).where(cls.is_prohibited.is_(None))
-            result = await session.execute(stmt)
+            result = await session.execute(statement)
             return result.scalars().first()
 
         except SQLAlchemyError as e:
@@ -88,3 +89,25 @@ class Link(Base):
         finally:
             if own_session:
                 await session.close()
+
+    @classmethod
+    async def get_first_unverified(
+        cls: type[Link], session: AsyncSession | None = None
+    ) -> Link | None:
+        stmt: Select[tuple[Link]] = select(cls).where(cls.is_prohibited.is_(None))
+        result: Link | None = await cls._execute_get_one_statement(
+            session=session, statement=stmt
+        )
+        return result
+
+    @classmethod
+    async def get_by_link(
+        cls: type[Link],
+        link: str,
+        session: AsyncSession | None = None,
+    ) -> Link | None:
+        stmt: Select[tuple[Link]] = select(cls).where(cls.link == link)
+        result: Link | None = await cls._execute_get_one_statement(
+            session=session, statement=stmt
+        )
+        return result
