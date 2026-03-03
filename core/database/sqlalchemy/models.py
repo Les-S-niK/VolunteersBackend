@@ -1,10 +1,13 @@
 import datetime
+from os.path import join
+from typing import Type
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     Date,
     ForeignKey,
+    Result,
     Select,
     SmallInteger,
     delete,
@@ -35,6 +38,26 @@ class Event(Base):
 
     name: Mapped[str]
     date: Mapped[datetime.date] = mapped_column(Date)
+
+    @classmethod
+    async def get_events_by_user_id(
+        cls: type[Event], user_id: int, session: AsyncSession | None = None
+    ) -> list[Event]:
+        own_session = session is None
+        session = session or cls.session_maker()
+
+        try:
+            statement = (
+                select(cls)
+                .join(UserEvent, UserEvent.event_id == cls.id)
+                .where(UserEvent.user_id == user_id)
+            )
+            result: Result[tuple[Event]] = await session.execute(statement=statement)
+            return list(result.scalars().all())
+
+        finally:
+            if own_session:
+                await session.close()
 
 
 class UserEvent(Base):
@@ -73,7 +96,7 @@ class Link(Base):
     async def get_first_unverified(
         cls: type[Link], session: AsyncSession | None = None
     ) -> Link | None:
-        result: Link | None = await cls.get_one(session=session, is_prohibited = None)
+        result: Link | None = await cls.get_one(session=session, is_prohibited=None)
         return result
 
     @classmethod

@@ -68,13 +68,18 @@ class CRUD:
 
     @classmethod
     async def get(
-        cls: Type[T], session: Optional[AsyncSession] = None, **filters
-    ) -> Optional[List[T]]:
+        cls: Type[T],
+        id__in: list[int] = [],
+        session: Optional[AsyncSession] = None,
+        **filters,
+    ) -> List[T]:
         own_session = session is None
         session = session or cls.session_maker()
 
         try:
             conditions = cls._build_conditions(**filters)
+            if id__in:
+                conditions.append(cls.id.in_(id__in))
             stmt: Select = select(cls).where(*conditions)
 
             result = await session.execute(stmt)
@@ -82,7 +87,7 @@ class CRUD:
 
         except SQLAlchemyError as e:
             print(e)
-            return None
+            return []
 
         finally:
             if own_session:
@@ -228,6 +233,7 @@ async def init_db():
             await conn.run_sync(Base.metadata.create_all)
     except Exception as a:
         print(a)
+
 
 async def drop_db():
     try:
