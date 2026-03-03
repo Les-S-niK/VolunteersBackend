@@ -1,10 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from pydantic import SecretStr
 from redis.asyncio import Redis
 
-from config import ApiSettings, TokenSettings, get_token_settings, get_api_settings
+from config import ApiSettings, TokenSettings, get_api_settings, get_token_settings
 from core.api_v1.auth.hashing import hash_password, verify_password
 from core.api_v1.auth.jwt_tokens import create_tokens_pair, decode_access_token
 from core.api_v1.auth.schemas import (
@@ -17,7 +17,7 @@ from core.api_v1.auth.schemas import (
 )
 from core.api_v1.auth.utils import try_verify_password
 from core.api_v1.error_schemas import InvalidRefreshTokenError, NotAuthorized
-from core.database.redis import get_refresh_redis, RedisCRUD
+from core.database.redis import RedisCRUD, get_refresh_redis
 from core.database.sqlalchemy.models import User
 
 auth_router: APIRouter = APIRouter(prefix="/api/v1/auth", tags=["Authenticate"])
@@ -30,7 +30,11 @@ SECONDS_IN_DAY: int = 86400
     path="/refresh/",
     description="Get access token by provided refresh token in the cookies.",
     responses={
-        401: {"model": InvalidRefreshTokenError, "detail": "Invalid refresh token."}
+        status.HTTP_200_OK: {"model": EncodedToken},
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": InvalidRefreshTokenError,
+            "detail": "Invalid refresh token.",
+        },
     },
 )
 async def refresh_handler(
@@ -40,6 +44,13 @@ async def refresh_handler(
     api_settings: Annotated[ApiSettings, Depends(get_api_settings)],
     redis_db: Annotated[Redis, Depends(get_refresh_redis)],
 ) -> EncodedToken:
+    """
+    Get a refresh token from the cookies and generate a new tokens pair. (Refresh and access tokens)
+    Save a refresh token in the Redis DB.
+
+    Returns:
+        EncodedToken: encoded JWT access token.
+    """
     refresh_token: str | None = request.cookies.get("refresh_token")
     if not refresh_token:
         raise HTTPException(
@@ -102,7 +113,13 @@ async def refresh_handler(
 @auth_router.post(
     path="/login/",
     description="Create access and refresh tokens based on user data.",
-    responses={401: {"model": NotAuthorized, "description": "Not authorized"}},
+    responses={
+        status.HTTP_200_OK: {"model": EncodedToken},
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": NotAuthorized,
+            "description": "Not authorized",
+        },
+    },
 )
 async def login_handler(
     response: Response,
@@ -111,6 +128,13 @@ async def login_handler(
     api_settings: Annotated[ApiSettings, Depends(get_api_settings)],
     redis_db: Annotated[Redis, Depends(get_refresh_redis)],
 ) -> EncodedToken:
+    """
+    Get user's login data (user_id, password), validate it and generate a tokens pair. (Access and refresh tokens)
+    Set refresh token in the "refresh" httponly cookies field.
+
+    Returns:
+        EncodedToken: encoded JWT access token.
+    """
     user_id: int = user_auth.user_id
     user_password: SecretStr = user_auth.password
 
