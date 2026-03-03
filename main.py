@@ -6,8 +6,8 @@ from uvicorn import run
 
 from config import ApiSettings, get_api_settings
 from core.api_v1.auth import auth_router, get_current_user
-from core.api_v1.profile import profile_router
 from core.api_v1.links import links_router
+from core.api_v1.profile import profile_router
 from core.database.sqlalchemy.models import User
 
 api_settings: ApiSettings = get_api_settings()

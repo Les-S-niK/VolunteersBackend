@@ -43,13 +43,12 @@ class EventModel(BaseModel):
     ]
 
 
-class UserEvents(BaseModel):
+class Events(BaseModel):
     events: Annotated[
         list[EventModel],
         Field(
             default=[],
-            title="User events",
-            description="Events in which the user participated.",
+            title="Events List",
             examples=[[{"id": 123, "name": "Example event.", "date": "2026-02-25"}]],
         ),
     ]
