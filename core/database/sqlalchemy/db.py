@@ -69,7 +69,6 @@ class CRUD:
     @classmethod
     async def get(
         cls: Type[T],
-        id__in: list[int] = [],
         session: Optional[AsyncSession] = None,
         **filters,
     ) -> List[T]:
@@ -78,8 +77,6 @@ class CRUD:
 
         try:
             conditions = cls._build_conditions(**filters)
-            if id__in:
-                conditions.append(cls.id.in_(id__in))
             stmt: Select = select(cls).where(*conditions)
 
             result = await session.execute(stmt)
