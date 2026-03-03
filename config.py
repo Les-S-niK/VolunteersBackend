@@ -46,7 +46,7 @@ class TokenSettings(BaseSettings):
     ] = 30
     ACCESS_EXPIRE_MINUTES: Annotated[
         int,
-        Field(default=15, title="Access token expiration time in days", ge=1, le=60),
+        Field(default=15, title="Access token expiration time in minutes", ge=1, le=60),
     ] = 15
     ALGORITHM: Annotated[
         str, Field(default="HS256", title="Access token algorithm type")
