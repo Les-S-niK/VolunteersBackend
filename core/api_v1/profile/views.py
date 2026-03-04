@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 
 from core.api_v1.auth import get_current_user
-from core.api_v1.error_schemas import NotAuthorized
+from core.api_v1.error_schemas import InternalServerError, NotAuthorized
 from core.api_v1.profile.schemas import EventModel, Events, UserProfile
 from core.database.sqlalchemy.models import Event, User
 
@@ -19,6 +19,7 @@ profile_router: APIRouter = APIRouter(prefix="/api/v1/profiles", tags=["Profile"
             "model": NotAuthorized,
             "description": "User not authorized.",
         },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError}
     },
 )
 async def profiles_handler(
@@ -39,6 +40,7 @@ async def profiles_handler(
             "model": NotAuthorized,
             "description": "User not authorized.",
         },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError}
     },
 )
 async def user_events_handler(
