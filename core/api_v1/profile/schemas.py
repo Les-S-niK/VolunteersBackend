@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 from typing import Annotated
 
 from pydantic import BaseModel, Field
@@ -38,8 +38,9 @@ class EventModel(BaseModel):
     name: Annotated[
         str, Field(default=..., title="Event name.", examples=["Example event."])
     ]
-    date: Annotated[
-        datetime.date, Field(default=..., title="Event date", examples=["2026-02-25"])
+    datetime: Annotated[
+        dt.datetime,
+        Field(default=..., title="Event datetime", examples=["2026-03-05 21:15"]),
     ]
 
 
