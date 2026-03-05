@@ -56,7 +56,7 @@ async def after_verification_handler(
 
 @links_router.patch(
     path="/first_unverified/",
-    description="Get the first unverified link from the database. Update a record in the database. (Set the user who took the link in user_id field.)",
+    description="Get the first unverified link with max priority from the database. Update a record in the database. (Set the user who took the link in user_id field.)",
     response_model=LinkToVerifyModel,
     responses={
         status.HTTP_200_OK: {
@@ -73,10 +73,10 @@ async def first_unverified_handler(
     user: Annotated[User, Depends(get_current_user)],
 ) -> LinkToVerifyModel | Response:
     """
-    Get the first unverified link from the database and return it.
+    Get the first unverified link with max priority from the database and return it.
     Patch the links.user_id field by user's ID who took it.
     """
-    first_unverified_link: Link | None = await Link.get_first_unverified()
+    first_unverified_link: Link | None = await Link.get_first_priority_unverified()
     if not first_unverified_link:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
