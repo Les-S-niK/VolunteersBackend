@@ -97,11 +97,25 @@ class Link(Base):
             await session.commit()
 
     @classmethod
-    async def get_first_unverified(
+    async def get_first_priority_unverified(
         cls: type[Link], session: AsyncSession | None = None
     ) -> Link | None:
-        result: Link | None = await cls.get_one(session=session, is_prohibited=None)
-        return result
+        own_session = session is None
+        session = session or cls.session_maker()
+
+        try:
+            statement = (
+                select(cls)
+                .where(Link.is_prohibited.is_(None))
+                .order_by(Link.priority.desc())
+                .limit(1)
+            )
+            result: Result[tuple[Link]] = await session.execute(statement=statement)
+            return result.scalar_one_or_none()
+
+        finally:
+            if own_session:
+                await session.close()
 
     @classmethod
     async def get_by_link(
