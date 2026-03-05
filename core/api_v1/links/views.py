@@ -13,7 +13,7 @@ links_router: APIRouter = APIRouter(prefix="/api/v1/links", tags=["Links"])
 
 @links_router.patch(
     path="/after_verification/",
-    description='Set a new value in the "is_prohibited" link field',
+    description='Set a new value in the "is_prohibited" link field after link verification.',
     responses={
         status.HTTP_204_NO_CONTENT: {"description": "Link status was patched."},
         status.HTTP_403_FORBIDDEN: {"model": Forbidden},
@@ -86,7 +86,7 @@ async def first_unverified_handler(
     if not update_result:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server erorr",
+            detail="Internal server error",
         )
 
     return LinkToVerifyModel(link=HttpUrl(first_unverified_link.link))

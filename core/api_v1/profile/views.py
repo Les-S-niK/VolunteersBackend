@@ -19,7 +19,7 @@ profile_router: APIRouter = APIRouter(prefix="/api/v1/profiles", tags=["Profile"
             "model": NotAuthorized,
             "description": "User not authorized.",
         },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError}
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
 )
 async def profiles_handler(
@@ -40,7 +40,7 @@ async def profiles_handler(
             "model": NotAuthorized,
             "description": "User not authorized.",
         },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError}
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
 )
 async def user_events_handler(
@@ -55,7 +55,7 @@ async def user_events_handler(
     events: list[Event] = await Event.get_events_by_user_id(user_id=user.id)
     return Events(
         events=[
-            EventModel(id=event.id, date=event.date, name=event.name)
+            EventModel(id=event.id, datetime=event.datetime, name=event.name)
             for event in events
         ]
     )

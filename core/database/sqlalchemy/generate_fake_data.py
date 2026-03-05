@@ -26,7 +26,7 @@ async def fill_fake_events():
     for _ in range(100):
         await Event.add(
             name=hex(randint(1024, 65536))[2:],
-            date=fake.date_between(),
+            datetime=fake.date_time(),
         )
 
 
@@ -38,6 +38,7 @@ async def fill_fake_links():
         await Link.add(
             link=fake.url(),
             is_prohibited=None if is_url_none else is_url_proh,
+            priority=randint(0, 10),
             user_id=i + 1,
         )
 
