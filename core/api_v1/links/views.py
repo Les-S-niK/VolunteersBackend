@@ -36,33 +36,37 @@ async def after_verification_handler(
     Patch links.is_prohibited field in the database.
     Only user who took a link can patch the field.
     """
-    try:
-        link_query_result: Result = (
-            await CRUD.get(Link).where(Link.link == str(link.link)).execute()
-        )
-    except SQLAlchemyError:
-        raise internal_server_error
+    async with CRUD() as session:
+        try:
+            link_query_result: Result = (
+                await CRUD.get(Link, session=session)
+                .where(Link.link == str(link.link))
+                .with_for_update()
+                .execute()
+            )
+        except SQLAlchemyError:
+            raise internal_server_error
 
-    found_link: Link | None = link_query_result.scalar_one_or_none()
-    if not found_link:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Link not found"
-        )
-    if found_link.user_id != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can not access this link.",
-        )
+        found_link: Link | None = link_query_result.scalar_one_or_none()
+        if not found_link:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Link not found"
+            )
+        if found_link.user_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can not access this link.",
+            )
 
-    try:
-        await (
-            CRUD.update(Link)
-            .where(Link.id == found_link.id)
-            .values(is_prohibited=link.is_prohibited)
-            .execute()
-        )
-    except SQLAlchemyError:
-        raise internal_server_error
+        try:
+            await (
+                CRUD.update(Link, session=session)
+                .where(Link.id == found_link.id)
+                .values(is_prohibited=link.is_prohibited)
+                .execute()
+            )
+        except SQLAlchemyError:
+            raise internal_server_error
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -89,26 +93,32 @@ async def first_unverified_handler(
     Get the first unverified link with max priority from the database and return it.
     Patch the links.user_id field by user's ID who took it.
     """
-    link_query_result: Result = (
-        await CRUD.get(Link)
-        .where(Link.is_prohibited.is_(None))
-        .order_by(Link.priority.desc())
-        .limit(1)
-        .execute()
-    )
-    first_unverified_link: Link | None = link_query_result.scalar_one_or_none()
+    async with CRUD() as session:
+        try:
+            link_query_result: Result = (
+                await CRUD.get(Link, session=session)
+                .where(Link.is_prohibited.is_(None))
+                .order_by(Link.priority.desc())
+                .limit(1)
+                .with_for_update()
+                .execute()
+            )
+        except SQLAlchemyError:
+            raise internal_server_error
 
-    if not first_unverified_link:
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        first_unverified_link: Link | None = link_query_result.scalar_one_or_none()
 
-    try:
-        await (
-            CRUD.update(Link)
-            .where(Link.id == first_unverified_link.id)
-            .values(user_id=user.id)
-            .execute()
-        )
-    except SQLAlchemyError:
-        raise internal_server_error
+        if not first_unverified_link:
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+        try:
+            await (
+                CRUD.update(Link, session=session)
+                .where(Link.id == first_unverified_link.id)
+                .values(user_id=user.id)
+                .execute()
+            )
+        except SQLAlchemyError:
+            raise internal_server_error
 
     return LinkToVerifyModel(link=HttpUrl(first_unverified_link.link))
