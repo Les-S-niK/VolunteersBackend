@@ -33,8 +33,11 @@ class UserProfile(BaseModel):
     ]
 
 
-class EventModel(BaseModel):
+class InputBodyEventModel(BaseModel):
     id: Annotated[int, Field(default=..., title="Event ID", ge=1, examples=[123, 414])]
+
+
+class EventModel(InputBodyEventModel):
     name: Annotated[
         str, Field(default=..., title="Event name.", examples=["Example event."])
     ]
