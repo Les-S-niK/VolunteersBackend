@@ -25,7 +25,9 @@ engine: AsyncEngine = create_async_engine(url=settings.get_db_url())
 
 
 class AddAction:
-    def __init__(self, item: Type[Base], session: AsyncSession, own_session: bool) -> None:
+    def __init__(
+        self, item: Type[Base], session: AsyncSession, own_session: bool
+    ) -> None:
         self.own_session = own_session
         self.session = session
         self.item = item
@@ -48,7 +50,9 @@ class AddAction:
 
 
 class GetAction:
-    def __init__(self, model: Type[Base], session: AsyncSession, own_session: bool) -> None:
+    def __init__(
+        self, model: Type[Base], session: AsyncSession, own_session: bool
+    ) -> None:
         self.own_session = own_session
         self.model = model
         self.session = session
@@ -81,7 +85,9 @@ class GetAction:
 
 
 class UpdateAction:
-    def __init__(self, model: Type[Base], session: AsyncSession, own_session: bool) -> None:
+    def __init__(
+        self, model: Type[Base], session: AsyncSession, own_session: bool
+    ) -> None:
         self.own_session = own_session
         self.model = model
         self.session = session
