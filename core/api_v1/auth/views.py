@@ -4,6 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, 
 from pydantic import SecretStr
 from redis.asyncio import Redis
 from sqlalchemy import Result
+from sqlalchemy.exc import SQLAlchemyError
 
 from config import ApiSettings, TokenSettings, get_api_settings, get_token_settings
 from core.api_v1.auth.hashing import hash_password, verify_password
@@ -25,6 +26,7 @@ from core.api_v1.error_schemas import (
 from core.database.redis import RedisCRUD, get_refresh_redis
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import User
+from core.api_v1.http_exceptions import internal_server_error
 
 auth_router: APIRouter = APIRouter(prefix="/api/v1/auth", tags=["Authenticate"])
 
@@ -146,7 +148,12 @@ async def login_handler(
     user_id: int = user_auth.user_id
     user_password: SecretStr = user_auth.password
 
-    statement_result: Result = await CRUD.get(User).where(User.id == user_id).execute()
+    try:
+        statement_result: Result = (
+            await CRUD.get(User).where(User.id == user_id).execute()
+        )
+    except SQLAlchemyError:
+        raise internal_server_error
     user: User | None = statement_result.scalar_one_or_none()
 
     not_found_exception: HTTPException = HTTPException(
