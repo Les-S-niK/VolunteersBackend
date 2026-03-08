@@ -5,11 +5,13 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pwdlib.exceptions import UnknownHashError
 from pydantic import SecretStr
 from sqlalchemy import Result
+from sqlalchemy.exc import SQLAlchemyError
 
 from config import TokenSettings, get_token_settings
 from core.api_v1.auth.hashing import verify_password
 from core.api_v1.auth.jwt_tokens import decode_access_token
 from core.api_v1.auth.schemas import USER_ID_KEY, DecodedToken
+from core.api_v1.http_exceptions import internal_server_error
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import User
 
@@ -39,7 +41,12 @@ async def get_current_user(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token payload.")
 
-    user_query_result: Result = await CRUD.get(User).where(User.id == user_id).execute()
+    try:
+        user_query_result: Result = (
+            await CRUD.get(User).where(User.id == user_id).execute()
+        )
+    except SQLAlchemyError:
+        raise internal_server_error
     user: User | None = user_query_result.scalar_one_or_none()
 
     if not user:

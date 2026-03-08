@@ -2,7 +2,8 @@ import datetime as dt
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import Result
+from sqlalchemy.exc import SQLAlchemyError
 
 from core.api_v1.auth import get_current_user
 from core.api_v1.error_schemas import (
@@ -11,6 +12,7 @@ from core.api_v1.error_schemas import (
     NotAuthorized,
     NotFoundError,
 )
+from core.api_v1.http_exceptions import internal_server_error
 from core.api_v1.profile.schemas import (
     EventModel,
     Events,
@@ -65,7 +67,17 @@ async def user_events_get_handler(
     Returns:
         list[Event]: list of all the events where user participated.
     """
-    events: list[Event] = await Event.get_events_by_user_id(user_id=user.id)
+    try:
+        events_query_result: Result = (
+            await CRUD.get(Event)
+            .join(UserEvent, UserEvent.event_id == Event.id)
+            .where(UserEvent.user_id == user.id)
+            .execute()
+        )
+    except SQLAlchemyError:
+        raise internal_server_error
+    events: list[Event] = list(events_query_result.scalars().all())
+
     return Events(
         events=[
             EventModel(id=event.id, datetime=event.datetime, name=event.name)
@@ -106,24 +118,40 @@ async def user_events_register_handler(
     Returns:
         Response: status 204 NoContent when the user successfully registered for the event.
     """
-    event_model: Event | None = await Event.get_one(id=event.id)
-    if not event_model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Can not find event with provided ID.",
-        )
+    async with CRUD() as session:
+        try:
+            event_query_result: Result = (
+                await CRUD.get(Event, session=session)
+                .where(Event.id == event.id)
+                .execute()
+            )
+        except SQLAlchemyError:
+            raise internal_server_error
+        event_model: Event | None = event_query_result.scalar_one_or_none()
 
-    now_time: dt.datetime = dt.datetime.now(dt.timezone.utc)
-    max_register_time: dt.timedelta = dt.timedelta(minutes=15)
-    event_start: dt.datetime = event_model.datetime
-    timediff: dt.timedelta = now_time - event_start
+        if not event_model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Can not find event with provided ID.",
+            )
 
-    if timediff.total_seconds() < 0 or timediff > max_register_time:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User can not register for the event after 15 minutes from the moment it starts.",
-        )
+        now_time: dt.datetime = dt.datetime.now(dt.timezone.utc)
+        max_register_time: dt.timedelta = dt.timedelta(minutes=15)
+        event_start: dt.datetime = event_model.datetime
+        timediff: dt.timedelta = now_time - event_start
 
-    await UserEvent.add(event_id=event_model.id, user_id=user.id)
+        if timediff.total_seconds() < 0 or timediff > max_register_time:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User can not register for the event after 15 minutes from the moment it starts.",
+            )
+
+        try:
+            new_user_event: UserEvent = UserEvent(
+                event_id=event_model.id, user_id=user.id
+            )
+            await CRUD.add(new_user_event, session=session).execute()
+        except SQLAlchemyError:
+            raise internal_server_error
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
