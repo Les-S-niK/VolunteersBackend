@@ -25,9 +25,7 @@ engine: AsyncEngine = create_async_engine(url=settings.get_db_url())
 
 
 class AddAction:
-    def __init__(
-        self, item: Type[Base], session: AsyncSession, own_session: bool
-    ) -> None:
+    def __init__(self, item: "Base", session: AsyncSession, own_session: bool) -> None:
         self.own_session = own_session
         self.session = session
         self.item = item
@@ -180,7 +178,7 @@ class CRUD:
 
     @classmethod
     def add(
-        cls: Type[CRUD], item: Type[Base], session: Optional[AsyncSession] = None
+        cls: Type[CRUD], item: "Base", session: Optional[AsyncSession] = None
     ) -> AddAction:
         return AddAction(
             item=item,
