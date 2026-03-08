@@ -106,7 +106,7 @@ async def user_events_register_handler(
     Returns:
         Response: status 204 NoContent when the user successfully registered for the event.
     """
-    event_model: Event | None = await Event.get_one(id=event.id, lock_cls=True)
+    event_model: Event | None = await Event.get_one(id=event.id)
     if not event_model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
