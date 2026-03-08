@@ -35,7 +35,7 @@ class Event(Base):
     __tablename__ = "events"
 
     name: Mapped[str]
-    datetime: Mapped[dt.datetime] = mapped_column(DateTime)
+    datetime: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
 
     @classmethod
     async def get_events_by_user_id(
