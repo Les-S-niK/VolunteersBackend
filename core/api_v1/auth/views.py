@@ -16,7 +16,7 @@ from core.api_v1.auth.schemas import (
     UserAuth,
 )
 from core.api_v1.auth.utils import try_verify_password
-from core.api_v1.error_schemas import InvalidRefreshTokenError, NotAuthorized
+from core.api_v1.error_schemas import InternalServerError, InvalidRefreshTokenError, NotAuthorized
 from core.database.redis import RedisCRUD, get_refresh_redis
 from core.database.sqlalchemy.models import User
 
@@ -35,6 +35,7 @@ SECONDS_IN_DAY: int = 86400
             "model": InvalidRefreshTokenError,
             "detail": "Invalid refresh token.",
         },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError}
     },
 )
 async def refresh_handler(
@@ -119,6 +120,7 @@ async def refresh_handler(
             "model": NotAuthorized,
             "description": "Not authorized",
         },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError}
     },
 )
 async def login_handler(

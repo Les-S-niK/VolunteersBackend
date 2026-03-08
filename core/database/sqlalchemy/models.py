@@ -1,19 +1,17 @@
-import datetime
-from os.path import join
-from typing import Type
+import datetime as dt
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     Date,
+    DateTime,
+    Float,
     ForeignKey,
     Result,
-    Select,
     SmallInteger,
     delete,
     select,
 )
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import Mapped, MappedColumn, mapped_column
 
@@ -24,7 +22,7 @@ class User(Base):
     __tablename__ = "users"
 
     full_name: Mapped[str]
-    birth: Mapped[datetime.date] = mapped_column(Date)
+    birth: Mapped[dt.date] = mapped_column(Date)
     passport: Mapped[str]
     phone_number: Mapped[str]
     points: Mapped[int] = mapped_column(default="0", server_default="0")
@@ -37,7 +35,7 @@ class Event(Base):
     __tablename__ = "events"
 
     name: Mapped[str]
-    date: Mapped[datetime.date] = mapped_column(Date)
+    datetime: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
 
     @classmethod
     async def get_events_by_user_id(
@@ -77,6 +75,12 @@ class Link(Base):
         default=None,
         doc="Is link prohibited? True - yes, False - no. None - not checked.",
     )
+    priority: MappedColumn[float | None] = mapped_column(
+        Float,
+        nullable=True,
+        default=None,
+        doc="Link priority from 0.0 to 10.0 where 10 - the most important. None - priority not entered.",
+    )
     user_id: MappedColumn[int | None] = mapped_column(
         BigInteger,
         ForeignKey("users.id"),
@@ -93,11 +97,25 @@ class Link(Base):
             await session.commit()
 
     @classmethod
-    async def get_first_unverified(
+    async def get_first_priority_unverified(
         cls: type[Link], session: AsyncSession | None = None
     ) -> Link | None:
-        result: Link | None = await cls.get_one(session=session, is_prohibited=None)
-        return result
+        own_session = session is None
+        session = session or cls.session_maker()
+
+        try:
+            statement = (
+                select(cls)
+                .where(Link.is_prohibited.is_(None))
+                .order_by(Link.priority.desc())
+                .limit(1)
+            )
+            result: Result[tuple[Link]] = await session.execute(statement=statement)
+            return result.scalar_one_or_none()
+
+        finally:
+            if own_session:
+                await session.close()
 
     @classmethod
     async def get_by_link(
