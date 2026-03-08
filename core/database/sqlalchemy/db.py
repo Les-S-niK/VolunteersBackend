@@ -1,8 +1,18 @@
 import datetime
-from typing import Any, List, Optional, Type, TypeVar
+from typing import Any, Optional, Type
 
-from sqlalchemy import BigInteger, DateTime, Select, delete, func, select, update
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    Delete,
+    Result,
+    Select,
+    Update,
+    delete,
+    func,
+    select,
+    update,
+)
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
 from sqlalchemy.ext.asyncio.session import AsyncSession
@@ -11,15 +21,152 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from config import DBSettings, get_db_settings
 
 settings: DBSettings = get_db_settings()
-T = TypeVar("T", bound="Base")
+engine: AsyncEngine = create_async_engine(url=settings.get_db_url())
 
-engine: AsyncEngine = create_async_engine(url=settings.get_db_url())  # echo=True
-# async_session_maker: AsyncSession = async_sessionmaker(engine, expire_on_commit=False)
+
+class AddAction:
+    def __init__(self, item: "Base", session: AsyncSession, own_session: bool) -> None:
+        self.own_session = own_session
+        self.session = session
+        self.item = item
+
+    async def execute(self) -> None:
+        try:
+            self.session.add(self.item)
+            await self.session.commit()
+            await self.session.refresh(self.item)
+
+        except Exception as e:
+            if self.own_session:
+                await self.session.rollback()
+
+            raise e
+
+        finally:
+            if self.own_session:
+                await self.session.close()
+
+
+class GetAction:
+    def __init__(
+        self, model: Type[Base], session: AsyncSession, own_session: bool
+    ) -> None:
+        self.own_session = own_session
+        self.model = model
+        self.session = session
+        self.stmt: Select = select(model)
+
+    def __getattr__(self, item) -> Any:
+        attr = getattr(self.stmt, item)
+
+        if not callable(attr):
+            return attr
+
+        def wrapper(*args, **kwargs) -> Any:
+            new_stmt = attr(*args, **kwargs)
+
+            if isinstance(new_stmt, self.stmt.__class__):
+                self.stmt = new_stmt
+                return self
+            return new_stmt
+
+        return wrapper
+
+    async def execute(self) -> Result:
+        try:
+            result = await self.session.execute(self.stmt)
+            return result
+
+        finally:
+            if self.own_session:
+                await self.session.close()
+
+
+class UpdateAction:
+    def __init__(
+        self, model: Type[Base], session: AsyncSession, own_session: bool
+    ) -> None:
+        self.own_session = own_session
+        self.model = model
+        self.session = session
+        self.stmt: Update = update(model)
+
+    def __getattr__(self, item) -> Any:
+        attr = getattr(self.stmt, item)
+
+        if not callable(attr):
+            return attr
+
+        def wrapper(*args, **kwargs) -> Any:
+            new_stmt = attr(*args, **kwargs)
+
+            if isinstance(new_stmt, self.stmt.__class__):
+                self.stmt = new_stmt
+                return self
+            return new_stmt
+
+        return wrapper
+
+    async def execute(self) -> Result:
+        try:
+            result = await self.session.execute(self.stmt)
+            await self.session.commit()
+            return result
+
+        except Exception as e:
+            if self.own_session:
+                await self.session.rollback()
+
+            raise e
+
+        finally:
+            if self.own_session:
+                await self.session.close()
+
+
+class DeleteAction:
+    def __init__(self, model: Type[Base], session: AsyncSession, own_session: bool):
+        self.own_session = own_session
+        self.model = model
+        self.session = session
+        self.stmt: Delete = delete(model)
+
+    def __getattr__(self, item):
+        attr = getattr(self.stmt, item)
+
+        if not callable(attr):
+            return attr
+
+        def wrapper(*args, **kwargs):
+            new_stmt = attr(*args, **kwargs)
+
+            if isinstance(new_stmt, self.stmt.__class__):
+                self.stmt = new_stmt
+                return self
+            return new_stmt
+
+        return wrapper
+
+    async def execute(self) -> Result:
+        try:
+            result = await self.session.execute(self.stmt)
+            await self.session.commit()
+            return result
+
+        except Exception as e:
+            if self.own_session:
+                await self.session.rollback()
+
+            raise e
+
+        finally:
+            if self.own_session:
+                await self.session.close()
 
 
 class CRUD:
     __engine = engine
-    session_maker = async_sessionmaker(engine, expire_on_commit=False)
+    __async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
     @classmethod
     def engine(cls) -> AsyncEngine:
@@ -27,189 +174,55 @@ class CRUD:
 
     @classmethod
     def async_session_maker(cls) -> async_sessionmaker[AsyncSession]:
-        return cls.session_maker
+        return cls.__async_session_maker
 
     @classmethod
-    def _build_conditions(cls, **kwargs) -> list[Any]:
-        conditions: list[Any] = []
-
-        for field_name, value in kwargs.items():
-            if value is not None:
-                conditions.append(getattr(cls, field_name) == value)
-
-        return conditions
-
-    @classmethod
-    async def add(
-        cls: Type[T], session: Optional[AsyncSession] = None, **kwargs
-    ) -> Optional[T]:
-        own_session = session is None
-        session = session or cls.session_maker()
-
-        try:
-            instance = cls(**kwargs)
-            session.add(instance)
-
-            if own_session:
-                await session.commit()
-                await session.refresh(instance)
-
-            return instance
-
-        except SQLAlchemyError as e:
-            if own_session:
-                await session.rollback()
-            print(e)
-            return None
-
-        finally:
-            if own_session:
-                await session.close()
+    def add(
+        cls: Type[CRUD], item: "Base", session: Optional[AsyncSession] = None
+    ) -> AddAction:
+        return AddAction(
+            item=item,
+            session=session or cls.__async_session_maker(),
+            own_session=session is None,
+        )
 
     @classmethod
-    async def get(
-        cls: Type[T],
-        session: Optional[AsyncSession] = None,
-        **filters,
-    ) -> List[T]:
-        own_session = session is None
-        session = session or cls.session_maker()
-
-        try:
-            conditions = cls._build_conditions(**filters)
-            stmt: Select = select(cls).where(*conditions)
-
-            result = await session.execute(stmt)
-            return result.scalars().all()
-
-        except SQLAlchemyError as e:
-            print(e)
-            return []
-
-        finally:
-            if own_session:
-                await session.close()
+    def get(
+        cls: Type[CRUD], model: Type[Base], session: Optional[AsyncSession] = None
+    ) -> GetAction:
+        return GetAction(
+            model=model,
+            session=session or cls.__async_session_maker(),
+            own_session=session is None,
+        )
 
     @classmethod
-    async def get_one(
-        cls: Type[T], session: Optional[AsyncSession] = None, **filters
-    ) -> Optional[T]:
-        own_session = session is None
-        session = session or cls.session_maker()
-
-        try:
-            conditions = cls._build_conditions(**filters)
-            stmt = select(cls).where(*conditions)
-
-            result = await session.execute(stmt)
-            return result.scalars().first()
-
-        except SQLAlchemyError as e:
-            print(e)
-            return None
-
-        finally:
-            if own_session:
-                await session.close()
+    def update(
+        cls: Type[CRUD], model: Type[Base], session: Optional[AsyncSession] = None
+    ) -> UpdateAction:
+        return UpdateAction(
+            model=model,
+            session=session or cls.__async_session_maker(),
+            own_session=session is None,
+        )
 
     @classmethod
-    async def get_by_id(
-        cls: Type[T], id: int, session: Optional[AsyncSession] = None
-    ) -> Optional[T]:
-        return await cls.get_one(session=session, id=id)
+    def delete(
+        cls: Type[CRUD], model: Type[Base], session: Optional[AsyncSession] = None
+    ) -> DeleteAction:
+        return DeleteAction(
+            model=model,
+            session=session or cls.__async_session_maker(),
+            own_session=session is None,
+        )
 
-    @classmethod
-    async def get_all(
-        cls: Type[T], session: Optional[AsyncSession] = None
-    ) -> Optional[List[T]]:
-        return await cls.get(session=session)
+    async def __aenter__(self):
+        self.__local_session = self.__async_session_maker()
+        return self.__local_session
 
-    @classmethod
-    async def update(
-        cls: Type[T], id: int, session: Optional[AsyncSession] = None, **values
-    ) -> bool:
-        own_session = session is None
-        session = session or cls.session_maker()
-
-        try:
-            stmt = (
-                update(cls)
-                .where(cls.id == id)
-                .values(**values)
-                .execution_options(synchronize_session="fetch")
-            )
-
-            result = await session.execute(stmt)
-
-            if own_session:
-                await session.commit()
-
-            return result.rowcount > 0
-
-        except SQLAlchemyError as e:
-            if own_session:
-                await session.rollback()
-            print(e)
-            return False
-
-        finally:
-            if own_session:
-                await session.close()
-
-    @classmethod
-    async def delete(
-        cls: Type[T], id: int, session: Optional[AsyncSession] = None
-    ) -> bool:
-        own_session = session is None
-        session = session or cls.session_maker()
-
-        try:
-            stmt = delete(cls).where(cls.id == id)
-            result = await session.execute(stmt)
-
-            if own_session:
-                await session.commit()
-
-            return result.rowcount > 0
-
-        except SQLAlchemyError as e:
-            if own_session:
-                await session.rollback()
-            print(e)
-            return False
-
-        finally:
-            if own_session:
-                await session.close()
-
-    @classmethod
-    async def exists(
-        cls: Type[T], session: Optional[AsyncSession] = None, **filters
-    ) -> bool:
-        result = await cls.get_one(session=session, **filters)
-        return result is not None
-
-    @classmethod
-    async def count(
-        cls: Type[T], session: Optional[AsyncSession] = None, **filters
-    ) -> int:
-        own_session = session is None
-        session = session or cls.session_maker()
-
-        try:
-            conditions = cls._build_conditions(**filters)
-            stmt = select(func.count()).select_from(cls).where(*conditions)
-
-            result = await session.execute(stmt)
-            return result.scalar_one()
-
-        except SQLAlchemyError as e:
-            print(e)
-            return 0
-
-        finally:
-            if own_session:
-                await session.close()
+    async def __aexit__(self, *_):
+        await self.__local_session.close()
+        return False
 
 
 class Base(AsyncAttrs, DeclarativeBase, CRUD):

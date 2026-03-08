@@ -7,12 +7,8 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
-    Result,
     SmallInteger,
-    delete,
-    select,
 )
-from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import Mapped, MappedColumn, mapped_column
 
 from core.database.sqlalchemy.db import Base
@@ -36,26 +32,6 @@ class Event(Base):
 
     name: Mapped[str]
     datetime: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
-
-    @classmethod
-    async def get_events_by_user_id(
-        cls: type[Event], user_id: int, session: AsyncSession | None = None
-    ) -> list[Event]:
-        own_session = session is None
-        session = session or cls.session_maker()
-
-        try:
-            statement = (
-                select(cls)
-                .join(UserEvent, UserEvent.event_id == cls.id)
-                .where(UserEvent.user_id == user_id)
-            )
-            result: Result[tuple[Event]] = await session.execute(statement=statement)
-            return list(result.scalars().all())
-
-        finally:
-            if own_session:
-                await session.close()
 
 
 class UserEvent(Base):
@@ -88,40 +64,3 @@ class Link(Base):
         default=None,
         doc="The user who should check this link. None - no one took this link to check it.",
     )
-
-    @classmethod
-    async def clear_table(cls: type[Link]):
-        stmt = delete(cls)
-        async with cls.session_maker() as session:
-            await session.execute(stmt)
-            await session.commit()
-
-    @classmethod
-    async def get_first_priority_unverified(
-        cls: type[Link], session: AsyncSession | None = None
-    ) -> Link | None:
-        own_session = session is None
-        session = session or cls.session_maker()
-
-        try:
-            statement = (
-                select(cls)
-                .where(Link.is_prohibited.is_(None))
-                .order_by(Link.priority.desc())
-                .limit(1)
-            )
-            result: Result[tuple[Link]] = await session.execute(statement=statement)
-            return result.scalar_one_or_none()
-
-        finally:
-            if own_session:
-                await session.close()
-
-    @classmethod
-    async def get_by_link(
-        cls: type[Link],
-        link: str,
-        session: AsyncSession | None = None,
-    ) -> Link | None:
-        result: Link | None = await cls.get_one(session=session, link=link)
-        return result
