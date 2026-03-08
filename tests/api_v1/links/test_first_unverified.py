@@ -1,5 +1,8 @@
-import asyncio
+import pytest
 from conftest import BASE_URL
+from sqlalchemy import Result
+
+from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import Link
 
 
@@ -16,7 +19,10 @@ def test_patch_first_unverified_success(session, auth_headers):
         assert isinstance(body["link"], str)
 
 
-def test_patch_first_unverified_sets_current_user_id(session, auth_headers, valid_credentials):
+@pytest.mark.asyncio
+async def test_patch_first_unverified_sets_current_user_id(
+    session, auth_headers, valid_credentials
+):
     response = session.patch(
         f"{BASE_URL}/api/v1/links/first_unverified/",
         headers=auth_headers,
@@ -27,7 +33,11 @@ def test_patch_first_unverified_sets_current_user_id(session, auth_headers, vali
 
     assert response.status_code == 200
     link_url = response.json()["link"]
-    link = asyncio.run(Link.get_by_link(link=link_url))
+    link_query_result: Result = (
+        await CRUD.get(Link).where(Link.link == link_url).execute()
+    )
+    link: Link | None = link_query_result.scalar_one_or_none()
+
     assert link is not None
     assert link.user_id == int(valid_credentials["user_id"])
 
