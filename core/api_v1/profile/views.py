@@ -123,6 +123,7 @@ async def user_events_register_handler(
             event_query_result: Result = (
                 await CRUD.get(Event, session=session)
                 .where(Event.id == event.id)
+                .with_for_update()
                 .execute()
             )
         except SQLAlchemyError:
