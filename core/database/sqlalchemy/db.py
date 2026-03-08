@@ -1,5 +1,18 @@
-from sqlalchemy import BigInteger, DateTime, Select, Update, Delete, Result, delete, func, select, update
-from sqlalchemy.exc import SQLAlchemyError
+import datetime
+from typing import Any, Optional, Type
+
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    Delete,
+    Result,
+    Select,
+    Update,
+    delete,
+    func,
+    select,
+    update,
+)
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
 from sqlalchemy.ext.asyncio.session import AsyncSession
@@ -7,16 +20,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from config import DBSettings, get_db_settings
 
-from typing import Any, List, Optional, Type, TypeVar
-from collections.abc import Coroutine
-import functools
-import datetime
-
 settings: DBSettings = get_db_settings()
-T = TypeVar("T", bound="Base")
-
-engine: AsyncEngine = create_async_engine(url=settings.get_db_url())  # echo=True
-# async_session_maker: AsyncSession = async_sessionmaker(engine, expire_on_commit=False)
+engine: AsyncEngine = create_async_engine(url=settings.get_db_url())
 
 
 class AddAction:
@@ -47,7 +52,6 @@ class GetAction:
         self.own_session = own_session
         self.model = model
         self.session = session
-
         self.stmt: Select = select(model)
 
     def __getattr__(self, item) -> Any:
@@ -62,7 +66,6 @@ class GetAction:
             if isinstance(new_stmt, self.stmt.__class__):
                 self.stmt = new_stmt
                 return self
-
             return new_stmt
 
         return wrapper
@@ -70,11 +73,6 @@ class GetAction:
     async def execute(self) -> Result:
         try:
             result = await self.session.execute(self.stmt)
-            self.stmt = result
-
-            print(self.stmt)
-            print(self.stmt.__class__)
-
             return result
 
         finally:
@@ -101,7 +99,6 @@ class UpdateAction:
             if isinstance(new_stmt, self.stmt.__class__):
                 self.stmt = new_stmt
                 return self
-
             return new_stmt
 
         return wrapper
@@ -142,7 +139,6 @@ class DeleteAction:
             if isinstance(new_stmt, self.stmt.__class__):
                 self.stmt = new_stmt
                 return self
-
             return new_stmt
 
         return wrapper
@@ -177,20 +173,44 @@ class CRUD:
         return cls.__async_session_maker
 
     @classmethod
-    def add(cls: Type[T], item: "Base", session: Optional[AsyncSession] = None) -> AddAction:
-        return AddAction(item=item, session=session or cls.__async_session_maker(), own_session=session is None)
+    def add(
+        cls: Type[CRUD], item: "Base", session: Optional[AsyncSession] = None
+    ) -> AddAction:
+        return AddAction(
+            item=item,
+            session=session or cls.__async_session_maker(),
+            own_session=session is None,
+        )
 
     @classmethod
-    def get(cls: Type[T], model: "Base", session: Optional[AsyncSession] = None) -> GetAction:
-        return GetAction(model=model, session=session or cls.__async_session_maker(), own_session=session is None)
+    def get(
+        cls: Type[CRUD], model: "Base", session: Optional[AsyncSession] = None
+    ) -> GetAction:
+        return GetAction(
+            model=model,
+            session=session or cls.__async_session_maker(),
+            own_session=session is None,
+        )
 
     @classmethod
-    def update(cls: Type[T], model: "Base", session: Optional[AsyncSession] = None) -> UpdateAction:
-        return UpdateAction(model=model, session=session or cls.__async_session_maker(), own_session=session is None)
+    def update(
+        cls: Type[CRUD], model: "Base", session: Optional[AsyncSession] = None
+    ) -> UpdateAction:
+        return UpdateAction(
+            model=model,
+            session=session or cls.__async_session_maker(),
+            own_session=session is None,
+        )
 
     @classmethod
-    def delete(cls: Type[T], model: "Base", session: Optional[AsyncSession] = None) -> DeleteAction:
-        return DeleteAction(model=model, session=session or cls.__async_session_maker(), own_session=session is None)
+    def delete(
+        cls: Type[CRUD], model: "Base", session: Optional[AsyncSession] = None
+    ) -> DeleteAction:
+        return DeleteAction(
+            model=model,
+            session=session or cls.__async_session_maker(),
+            own_session=session is None,
+        )
 
     async def __aenter__(self):
         self.__local_session = self.__async_session_maker()
@@ -198,7 +218,6 @@ class CRUD:
 
     async def __aexit__(self, *_):
         await self.__local_session.close()
-
         return False
 
 
@@ -218,5 +237,13 @@ async def init_db():
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+    except Exception as a:
+        print(a)
+
+
+async def drop_db():
+    try:
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.drop_all)
     except Exception as a:
         print(a)
