@@ -2,10 +2,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from pydantic import HttpUrl
+from sqlalchemy import Result
+from sqlalchemy.exc import SQLAlchemyError
 
 from core.api_v1.auth import get_current_user
 from core.api_v1.error_schemas import Forbidden, InternalServerError, NotFoundError
+from core.api_v1.http_exceptions import internal_server_error
 from core.api_v1.links.schemas import LinkToVerifyModel, VerifiedLinkResult
+from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import Link, User
 
 links_router: APIRouter = APIRouter(prefix="/api/v1/links", tags=["Links"])
@@ -32,7 +36,14 @@ async def after_verification_handler(
     Patch links.is_prohibited field in the database.
     Only user who took a link can patch the field.
     """
-    found_link: Link | None = await Link.get_by_link(link=str(link.link))
+    try:
+        link_query_result: Result = (
+            await CRUD.get(Link).where(Link.link == str(link.link)).execute()
+        )
+    except SQLAlchemyError:
+        raise internal_server_error
+
+    found_link: Link | None = link_query_result.scalar_one_or_none()
     if not found_link:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Link not found"
@@ -43,14 +54,16 @@ async def after_verification_handler(
             detail="You can not access this link.",
         )
 
-    update_result: bool = await Link.update(
-        id=found_link.id, is_prohibited=link.is_prohibited
-    )
-    if not update_result:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
+    try:
+        await (
+            CRUD.update(Link)
+            .where(Link.id == found_link.id)
+            .values(is_prohibited=link.is_prohibited)
+            .execute()
         )
+    except SQLAlchemyError:
+        raise internal_server_error
+
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -76,17 +89,26 @@ async def first_unverified_handler(
     Get the first unverified link with max priority from the database and return it.
     Patch the links.user_id field by user's ID who took it.
     """
-    first_unverified_link: Link | None = await Link.get_first_priority_unverified()
+    link_query_result: Result = (
+        await CRUD.get(Link)
+        .where(Link.is_prohibited.is_(None))
+        .order_by(Link.priority.desc())
+        .limit(1)
+        .execute()
+    )
+    first_unverified_link: Link | None = link_query_result.scalar_one_or_none()
+
     if not first_unverified_link:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-    update_result: bool = await Link.update(
-        id=first_unverified_link.id, user_id=user.id
-    )
-    if not update_result:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
+    try:
+        await (
+            CRUD.update(Link)
+            .where(Link.id == first_unverified_link.id)
+            .values(user_id=user.id)
+            .execute()
         )
+    except SQLAlchemyError:
+        raise internal_server_error
 
     return LinkToVerifyModel(link=HttpUrl(first_unverified_link.link))
