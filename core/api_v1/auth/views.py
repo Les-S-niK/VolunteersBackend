@@ -3,6 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from pydantic import SecretStr
 from redis.asyncio import Redis
+from sqlalchemy import Result
+from sqlalchemy.exc import SQLAlchemyError
 
 from config import ApiSettings, TokenSettings, get_api_settings, get_token_settings
 from core.api_v1.auth.hashing import hash_password, verify_password
@@ -16,9 +18,15 @@ from core.api_v1.auth.schemas import (
     UserAuth,
 )
 from core.api_v1.auth.utils import try_verify_password
-from core.api_v1.error_schemas import InternalServerError, InvalidRefreshTokenError, NotAuthorized
+from core.api_v1.error_schemas import (
+    InternalServerError,
+    InvalidRefreshTokenError,
+    NotAuthorized,
+)
 from core.database.redis import RedisCRUD, get_refresh_redis
+from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import User
+from core.api_v1.http_exceptions import internal_server_error
 
 auth_router: APIRouter = APIRouter(prefix="/api/v1/auth", tags=["Authenticate"])
 
@@ -35,7 +43,7 @@ SECONDS_IN_DAY: int = 86400
             "model": InvalidRefreshTokenError,
             "detail": "Invalid refresh token.",
         },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError}
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
 )
 async def refresh_handler(
@@ -120,7 +128,7 @@ async def refresh_handler(
             "model": NotAuthorized,
             "description": "Not authorized",
         },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError}
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
 )
 async def login_handler(
@@ -140,7 +148,13 @@ async def login_handler(
     user_id: int = user_auth.user_id
     user_password: SecretStr = user_auth.password
 
-    user: User | None = await User.get_by_id(user_id)
+    try:
+        statement_result: Result = (
+            await CRUD.get(User).where(User.id == user_id).execute()
+        )
+    except SQLAlchemyError:
+        raise internal_server_error
+    user: User | None = statement_result.scalar_one_or_none()
 
     not_found_exception: HTTPException = HTTPException(
         status_code=401, detail="Not authorized"
@@ -157,7 +171,6 @@ async def login_handler(
         refresh_key=token_settings.REFRESH_SECRET_KEY.get_secret_value(),
         algorithm=token_settings.ALGORITHM,
     )
-
     refresh_ttl: int = int(token_settings.refresh_token_expire.total_seconds())
     async with RedisCRUD(redis_db) as redis:
         await redis.create(
@@ -165,7 +178,6 @@ async def login_handler(
             value=hash_password(tokens_pair.refresh_token),
             ttl_seconds=refresh_ttl,
         )
-
     response.set_cookie(
         key="refresh_token",
         value=tokens_pair.refresh_token,
@@ -175,7 +187,6 @@ async def login_handler(
         max_age=refresh_ttl,
         path="/api/v1/auth/",
     )
-
     return EncodedToken(
         token=tokens_pair.access_token, token_type=TokenTypesEnum.access
     )
