@@ -13,7 +13,7 @@ links_router: APIRouter = APIRouter(prefix="/api/v1/links", tags=["Links"])
 
 @links_router.patch(
     path="/after_verification/",
-    description='Set a new value in the "is_prohibited" link field',
+    description='Set a new value in the "is_prohibited" link field after link verification.',
     responses={
         status.HTTP_204_NO_CONTENT: {"description": "Link status was patched."},
         status.HTTP_403_FORBIDDEN: {"model": Forbidden},
@@ -56,7 +56,7 @@ async def after_verification_handler(
 
 @links_router.patch(
     path="/first_unverified/",
-    description="Get the first unverified link from the database. Update a record in the database. (Set the user who took the link in user_id field.)",
+    description="Get the first unverified link with max priority from the database. Update a record in the database. (Set the user who took the link in user_id field.)",
     response_model=LinkToVerifyModel,
     responses={
         status.HTTP_200_OK: {
@@ -73,10 +73,10 @@ async def first_unverified_handler(
     user: Annotated[User, Depends(get_current_user)],
 ) -> LinkToVerifyModel | Response:
     """
-    Get the first unverified link from the database and return it.
+    Get the first unverified link with max priority from the database and return it.
     Patch the links.user_id field by user's ID who took it.
     """
-    first_unverified_link: Link | None = await Link.get_first_unverified()
+    first_unverified_link: Link | None = await Link.get_first_priority_unverified()
     if not first_unverified_link:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -86,7 +86,7 @@ async def first_unverified_handler(
     if not update_result:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server erorr",
+            detail="Internal server error",
         )
 
     return LinkToVerifyModel(link=HttpUrl(first_unverified_link.link))
