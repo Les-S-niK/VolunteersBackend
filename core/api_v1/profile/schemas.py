@@ -14,14 +14,6 @@ class UserProfile(BaseModel):
             examples=[123, 1234, 1],
         ),
     ]
-    full_name: Annotated[
-        str,
-        Field(
-            default=...,
-            title="User's full name.",
-            examples=["Elena Olegovna Lebedeva"],
-        ),
-    ]
     points: Annotated[
         int,
         Field(
