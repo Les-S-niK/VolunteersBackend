@@ -6,6 +6,9 @@ from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+APP_VERSION: str = "0.1.1"
+
+
 class ApiSettings(BaseSettings):
     HOST: Annotated[str, Field(default="127.0.0.1", title="Api IP host")] = "127.0.0.1"
     PORT: Annotated[int, Field(default=8080, title="Api port", ge=1, le=65535)] = 8080

@@ -1,26 +1,19 @@
-from typing import Annotated
-
-from fastapi import Depends, FastAPI
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 from uvicorn import run
 
-from config import ApiSettings, get_api_settings
-from core.api_v1.auth import auth_router, get_current_user
+from config import APP_VERSION, ApiSettings, get_api_settings
+from core.api_v1.auth import auth_router
 from core.api_v1.links import links_router
 from core.api_v1.profile import profile_router
-from core.database.sqlalchemy.models import User
+from core.logger.logger import setup_logger
 
 api_settings: ApiSettings = get_api_settings()
+setup_logger()
 
-app: FastAPI = FastAPI(debug=api_settings.DEBUG)
+app: FastAPI = FastAPI(debug=api_settings.DEBUG, version=APP_VERSION)
 app.include_router(auth_router)
 app.include_router(profile_router)
 app.include_router(links_router)
-
-
-@app.get("/index/")
-async def index_get(user: Annotated[User, Depends(get_current_user)]) -> JSONResponse:
-    return JSONResponse(content={"message": "hello", "user_id": user.id})
 
 
 if __name__ == "__main__":
