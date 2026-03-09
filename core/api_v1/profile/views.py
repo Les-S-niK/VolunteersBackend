@@ -43,7 +43,7 @@ async def profiles_handler(
     """
     Get user's id, full name and points from the profile.
     """
-    return UserProfile(id=user.id, full_name=user.full_name, points=user.points)
+    return UserProfile(id=user.id, points=user.points)
 
 
 @profile_router.get(

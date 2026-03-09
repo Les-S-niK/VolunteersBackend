@@ -3,7 +3,6 @@ from conftest import BASE_URL, assert_schema
 
 USER_PROFILE_SCHEMA = {
     "id": int,
-    "full_name": str,
     "points": int
 }
 
