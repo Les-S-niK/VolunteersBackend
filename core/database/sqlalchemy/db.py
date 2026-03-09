@@ -1,5 +1,6 @@
 import datetime
-from typing import Any, Optional, Type
+from abc import ABC, abstractmethod
+from typing import Any, Optional, Type, override
 
 from sqlalchemy import (
     BigInteger,
@@ -19,11 +20,13 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from config import DBSettings, get_db_settings
+from core.logger.logger import database_query_logger, execute_query_logger
 
 settings: DBSettings = get_db_settings()
 engine: AsyncEngine = create_async_engine(url=settings.get_db_url())
 
 
+<<<<<<< Updated upstream
 class AddAction:
     def __init__(self, item: "Base", session: AsyncSession, own_session: bool) -> None:
         self.own_session = own_session
@@ -130,6 +133,17 @@ class DeleteAction:
         self.model = model
         self.session = session
         self.stmt: Delete = delete(model)
+=======
+class QueryAction(ABC):
+    @abstractmethod
+    @execute_query_logger
+    async def execute(self) -> Any: ...
+
+
+class QueryBuilder:
+    def __init__(self, stmt: Any) -> None:
+        self.stmt = stmt
+>>>>>>> Stashed changes
 
     def __getattr__(self, item):
         attr = getattr(self.stmt, item)
@@ -147,6 +161,86 @@ class DeleteAction:
 
         return wrapper
 
+
+class AddAction(QueryAction):
+    def __init__(self, item: "Base", session: AsyncSession, own_session: bool) -> None:
+        self.own_session = own_session
+        self.session = session
+        self.item = item
+
+    @override
+    async def execute(self) -> None:
+        try:
+            self.session.add(self.item)
+            await self.session.commit()
+            await self.session.refresh(self.item)
+
+        except Exception as e:
+            if self.own_session:
+                await self.session.rollback()
+
+            raise e
+
+        finally:
+            if self.own_session:
+                await self.session.close()
+
+
+class GetAction(QueryAction, QueryBuilder):
+    def __init__(
+        self, model: Type[Base], session: AsyncSession, own_session: bool
+    ) -> None:
+        self.own_session = own_session
+        self.model = model
+        self.session = session
+        self.stmt: Select = select(model)
+
+    @override
+    async def execute(self) -> Result:
+        try:
+            result = await self.session.execute(self.stmt)
+            return result
+
+        finally:
+            if self.own_session:
+                await self.session.close()
+
+
+class UpdateAction(QueryAction, QueryBuilder):
+    def __init__(
+        self, model: Type[Base], session: AsyncSession, own_session: bool
+    ) -> None:
+        self.own_session = own_session
+        self.model = model
+        self.session = session
+        self.stmt: Update = update(model)
+
+    @override
+    async def execute(self) -> Result:
+        try:
+            result = await self.session.execute(self.stmt)
+            await self.session.commit()
+            return result
+
+        except Exception as e:
+            if self.own_session:
+                await self.session.rollback()
+
+            raise e
+
+        finally:
+            if self.own_session:
+                await self.session.close()
+
+
+class DeleteAction(QueryAction, QueryBuilder):
+    def __init__(self, model: Type[Base], session: AsyncSession, own_session: bool):
+        self.own_session = own_session
+        self.model = model
+        self.session = session
+        self.stmt: Delete = delete(model)
+
+    @override
     async def execute(self) -> Result:
         try:
             result = await self.session.execute(self.stmt)
@@ -177,6 +271,7 @@ class CRUD:
         return cls.__async_session_maker
 
     @classmethod
+    @database_query_logger
     def add(
         cls: Type[CRUD], item: "Base", session: Optional[AsyncSession] = None
     ) -> AddAction:
@@ -187,6 +282,7 @@ class CRUD:
         )
 
     @classmethod
+    @database_query_logger
     def get(
         cls: Type[CRUD], model: Type[Base], session: Optional[AsyncSession] = None
     ) -> GetAction:
@@ -197,6 +293,7 @@ class CRUD:
         )
 
     @classmethod
+    @database_query_logger
     def update(
         cls: Type[CRUD], model: Type[Base], session: Optional[AsyncSession] = None
     ) -> UpdateAction:
@@ -207,6 +304,7 @@ class CRUD:
         )
 
     @classmethod
+    @database_query_logger
     def delete(
         cls: Type[CRUD], model: Type[Base], session: Optional[AsyncSession] = None
     ) -> DeleteAction:
