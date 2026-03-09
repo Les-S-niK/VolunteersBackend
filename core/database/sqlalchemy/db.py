@@ -26,114 +26,6 @@ settings: DBSettings = get_db_settings()
 engine: AsyncEngine = create_async_engine(url=settings.get_db_url())
 
 
-<<<<<<< Updated upstream
-class AddAction:
-    def __init__(self, item: "Base", session: AsyncSession, own_session: bool) -> None:
-        self.own_session = own_session
-        self.session = session
-        self.item = item
-
-    async def execute(self) -> None:
-        try:
-            self.session.add(self.item)
-            await self.session.commit()
-            await self.session.refresh(self.item)
-
-        except Exception as e:
-            if self.own_session:
-                await self.session.rollback()
-
-            raise e
-
-        finally:
-            if self.own_session:
-                await self.session.close()
-
-
-class GetAction:
-    def __init__(
-        self, model: Type[Base], session: AsyncSession, own_session: bool
-    ) -> None:
-        self.own_session = own_session
-        self.model = model
-        self.session = session
-        self.stmt: Select = select(model)
-
-    def __getattr__(self, item) -> Any:
-        attr = getattr(self.stmt, item)
-
-        if not callable(attr):
-            return attr
-
-        def wrapper(*args, **kwargs) -> Any:
-            new_stmt = attr(*args, **kwargs)
-
-            if isinstance(new_stmt, self.stmt.__class__):
-                self.stmt = new_stmt
-                return self
-            return new_stmt
-
-        return wrapper
-
-    async def execute(self) -> Result:
-        try:
-            result = await self.session.execute(self.stmt)
-            return result
-
-        finally:
-            if self.own_session:
-                await self.session.close()
-
-
-class UpdateAction:
-    def __init__(
-        self, model: Type[Base], session: AsyncSession, own_session: bool
-    ) -> None:
-        self.own_session = own_session
-        self.model = model
-        self.session = session
-        self.stmt: Update = update(model)
-
-    def __getattr__(self, item) -> Any:
-        attr = getattr(self.stmt, item)
-
-        if not callable(attr):
-            return attr
-
-        def wrapper(*args, **kwargs) -> Any:
-            new_stmt = attr(*args, **kwargs)
-
-            if isinstance(new_stmt, self.stmt.__class__):
-                self.stmt = new_stmt
-                return self
-            return new_stmt
-
-        return wrapper
-
-    async def execute(self) -> Result:
-        try:
-            result = await self.session.execute(self.stmt)
-            await self.session.commit()
-            return result
-
-        except Exception as e:
-            if self.own_session:
-                await self.session.rollback()
-
-            raise e
-
-        finally:
-            if self.own_session:
-                await self.session.close()
-
-
-class DeleteAction:
-    def __init__(self, model: Type[Base], session: AsyncSession, own_session: bool):
-        self.own_session = own_session
-        self.model = model
-        self.session = session
-        self.stmt: Delete = delete(model)
-=======
 class QueryAction(ABC):
     @abstractmethod
     @execute_query_logger
@@ -143,7 +35,6 @@ class QueryAction(ABC):
 class QueryBuilder:
     def __init__(self, stmt: Any) -> None:
         self.stmt = stmt
->>>>>>> Stashed changes
 
     def __getattr__(self, item):
         attr = getattr(self.stmt, item)
