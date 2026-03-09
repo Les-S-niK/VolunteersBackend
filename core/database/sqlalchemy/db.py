@@ -28,7 +28,6 @@ engine: AsyncEngine = create_async_engine(url=settings.get_db_url())
 
 class QueryAction(ABC):
     @abstractmethod
-    @execute_query_logger
     async def execute(self) -> Any: ...
 
 
@@ -60,6 +59,7 @@ class AddAction(QueryAction):
         self.item = item
 
     @override
+    @execute_query_logger
     async def execute(self) -> None:
         try:
             self.session.add(self.item)
@@ -87,6 +87,7 @@ class GetAction(QueryAction, QueryBuilder):
         self.stmt: Select = select(model)
 
     @override
+    @execute_query_logger
     async def execute(self) -> Result:
         try:
             result = await self.session.execute(self.stmt)
@@ -107,6 +108,7 @@ class UpdateAction(QueryAction, QueryBuilder):
         self.stmt: Update = update(model)
 
     @override
+    @execute_query_logger
     async def execute(self) -> Result:
         try:
             result = await self.session.execute(self.stmt)
@@ -132,6 +134,7 @@ class DeleteAction(QueryAction, QueryBuilder):
         self.stmt: Delete = delete(model)
 
     @override
+    @execute_query_logger
     async def execute(self) -> Result:
         try:
             result = await self.session.execute(self.stmt)
