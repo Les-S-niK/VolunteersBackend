@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 import jwt
-from jwt.exceptions import ExpiredSignatureError, InvalidKeyError
+from jwt.exceptions import InvalidKeyError
 
 from core.api_v1.auth.schemas import DecodedToken, EncodedTokensPair
 
