@@ -8,7 +8,7 @@ from core.api_v1.auth import get_current_user
 from core.api_v1.error_schemas import InternalServerError
 from core.api_v1.report.schemas import ReportModel
 from core.database.sqlalchemy.db import CRUD
-from core.database.sqlalchemy.models import Report, User
+from core.database.sqlalchemy.models import Report, ReportStatuses, User
 
 reports_router: APIRouter = APIRouter(prefix="/api/v1/reports", tags=["Reports"])
 
@@ -34,7 +34,10 @@ async def new_report_handler(
         Response: status 201 with no body.
     """
     report: Report = Report(
-        title=report_model.title, description=report_model.description, user_id=user.id
+        title=report_model.title,
+        description=report_model.description,
+        status=ReportStatuses.unanswered,
+        user_id=user.id,
     )
 
     try:
