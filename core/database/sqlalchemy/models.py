@@ -1,6 +1,7 @@
 import datetime as dt
 
 from sqlalchemy import (
+    TEXT,
     BigInteger,
     Boolean,
     Date,
@@ -8,8 +9,9 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     SmallInteger,
+    null,
 )
-from sqlalchemy.orm import Mapped, MappedColumn, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database.sqlalchemy.db import Base
 
@@ -51,16 +53,26 @@ class Link(Base):
         default=None,
         doc="Is link prohibited? True - yes, False - no. None - not checked.",
     )
-    priority: MappedColumn[float | None] = mapped_column(
+    priority: Mapped[float | None] = mapped_column(
         Float,
         nullable=True,
         default=None,
         doc="Link priority from 0.0 to 10.0 where 10 - the most important. None - priority not entered.",
     )
-    user_id: MappedColumn[int | None] = mapped_column(
+    user_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey("users.id"),
         nullable=True,
         default=None,
         doc="The user who should check this link. None - no one took this link to check it.",
+    )
+
+
+class Report(Base):
+    __tablename__ = "reports"
+
+    title: Mapped[str] = mapped_column(TEXT)
+    description: Mapped[str] = mapped_column(TEXT)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id"), doc="The user who create a report."
     )

@@ -1,0 +1,48 @@
+from typing import Annotated
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
+from sqlalchemy.exc import SQLAlchemyError
+from starlette.status import HTTP_201_CREATED
+
+from core.api_v1.auth import get_current_user
+from core.api_v1.error_schemas import InternalServerError
+from core.api_v1.report.schemas import ReportModel
+from core.database.sqlalchemy.db import CRUD
+from core.database.sqlalchemy.models import Report, User
+
+reports_router: APIRouter = APIRouter(prefix="/api/v1/reports", tags=["Reports"])
+
+
+@reports_router.post(
+    path="/new/",
+    description="Add a new report in the database.",
+    responses={
+        status.HTTP_201_CREATED: {"description": "Report added in the database."},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
+    },
+    status_code=status.HTTP_201_CREATED,
+)
+async def new_report_handler(
+    user: Annotated[User, Depends(get_current_user)],
+    report_model: Annotated[ReportModel, Body()],
+) -> Response:
+    """
+    Add a new report in the database.
+    Write a new report based on report_model provided by user.
+
+    Returns:
+        Response: status 201 with no body.
+    """
+    report: Report = Report(
+        title=report_model.title, description=report_model.description, user_id=user.id
+    )
+
+    try:
+        await CRUD.add(report).execute()
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error. Can not add report with these input data.",
+        )
+
+    return Response(status_code=HTTP_201_CREATED)
