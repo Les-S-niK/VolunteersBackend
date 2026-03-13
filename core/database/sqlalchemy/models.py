@@ -1,6 +1,9 @@
 import datetime as dt
+from decimal import Decimal
+from enum import Enum
 
 from sqlalchemy import (
+    DECIMAL,
     TEXT,
     BigInteger,
     Boolean,
@@ -8,12 +11,19 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Integer,
     SmallInteger,
-    null,
+    String,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database.sqlalchemy.db import Base
+
+
+class PurchaseStatuses(str, Enum):
+    frozen = "frozen"
+    denied = "denied"
+    purchased = "purchased"
 
 
 class User(Base):
@@ -71,8 +81,29 @@ class Link(Base):
 class Report(Base):
     __tablename__ = "reports"
 
-    title: Mapped[str] = mapped_column(TEXT)
+    title: Mapped[str] = mapped_column(String)
     description: Mapped[str] = mapped_column(TEXT)
     user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.id"), doc="The user who create a report."
+    )
+
+
+class Good(Base):
+    __tablename__ = "goods"
+
+    image_url: Mapped[str] = mapped_column(String)
+    price: Mapped[Decimal] = mapped_column(DECIMAL)
+    amount: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String)
+
+
+class UserGood(Base):
+    __tablename__ = "users_goods"
+
+    status: Mapped[PurchaseStatuses] = mapped_column(default=PurchaseStatuses.frozen)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id"), doc="The user who bought the good."
+    )
+    good_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("goods.id"), doc="The good that bought by the user."
     )
