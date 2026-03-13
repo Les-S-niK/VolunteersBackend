@@ -26,6 +26,11 @@ class PurchaseStatuses(str, Enum):
     purchased = "purchased"
 
 
+class ReportStatuses(str, Enum):
+    answered = "answered"
+    unanswered = "unanswered"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -83,6 +88,7 @@ class Report(Base):
 
     title: Mapped[str] = mapped_column(String)
     description: Mapped[str] = mapped_column(TEXT)
+    status: Mapped[ReportStatuses] = mapped_column()
     user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.id"), doc="The user who create a report."
     )
