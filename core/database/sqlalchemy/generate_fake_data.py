@@ -5,8 +5,8 @@ from sqlalchemy import Result
 from sqlalchemy.exc import SQLAlchemyError
 
 from core.api_v1.auth import hash_password
-from core.database.sqlalchemy.db import CRUD
-from core.database.sqlalchemy.models import Event, Link, User, UserEvent
+from core.database.sqlalchemy.db import CRUD, drop_db, init_db
+from core.database.sqlalchemy.models import Event, Link, Report, User, UserEvent
 
 fake = Faker()
 
@@ -43,7 +43,7 @@ async def fill_fake_events():
 async def fill_fake_links():
     async with CRUD() as session:
         for i in range(100):
-            is_url_none: bool = bool(randint(0, 1))
+            is_url_none: bool = bool(not randint(0, 4))
             is_url_proh: bool = bool(randint(0, 1))
 
             link: Link = Link(
@@ -67,11 +67,39 @@ async def fill_fake_users_events():
     if not users or not events:
         return
     async with CRUD() as session:
-        for user in users:
-            if randint(0, 2):
+        if randint(0, 2):
+            for user in users:
                 for event in events:
                     if not randint(0, 3):
                         user_event: UserEvent = UserEvent(
                             user_id=user.id, event_id=event.id
                         )
                         await CRUD.add(user_event, session=session).execute()
+
+
+async def fill_fake_reports():
+    users_result: Result = await CRUD.get(User).where().execute()
+    users: list[User] = list(users_result.scalars().all())
+
+    async with CRUD() as session:
+        for user in users:
+            if not randint(0, 1):
+                continue
+            report: Report = Report(
+                title=fake.user_name(),
+                description=fake.color_name(),
+                user_id=user.id,
+            )
+            CRUD.add(report, session=session)
+
+
+async def recreate_db() -> None:
+    await drop_db()
+    await init_db()
+
+    await fill_fake_users()
+    await fill_fake_links()
+    await fill_fake_events()
+    await fill_fake_users_events()
+    await fill_fake_reports()
+    print("End")
