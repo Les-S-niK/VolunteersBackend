@@ -14,6 +14,15 @@ class UserProfile(BaseModel):
             examples=[123, 1234, 1],
         ),
     ]
+    city_id: Annotated[
+        int,
+        Field(
+            default=...,
+            title="City ID",
+            description="City ID in the database. City where the user live.",
+            examples=[123, 1234, 1],
+        ),
+    ]
     points: Annotated[
         int,
         Field(

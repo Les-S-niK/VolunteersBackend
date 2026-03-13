@@ -41,9 +41,9 @@ async def profiles_handler(
     user: Annotated[User, Depends(get_current_user)],
 ) -> UserProfile:
     """
-    Get user's id, full name and points from the profile.
+    Get user's id, city id and points from the profile.
     """
-    return UserProfile(id=user.id, points=user.points)
+    return UserProfile(id=user.id, city_id=user.city_id, points=user.points)
 
 
 @profile_router.get(
