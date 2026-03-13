@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from config import TokenSettings, get_token_settings
 from core.api_v1.auth.hashing import verify_password
 from core.api_v1.auth.jwt_tokens import decode_access_token
-from core.api_v1.auth.schemas import USER_ID_KEY, DecodedToken
+from core.api_v1.auth.schemas import CITY_ID_KEY, USER_ID_KEY, DecodedToken
 from core.api_v1.http_exceptions import internal_server_error
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import User
@@ -34,16 +34,30 @@ async def get_current_decoded_access_token(
     return decoded_token
 
 
+def form_redis_user_id(city_id: int, user_id: int) -> str:
+    """
+    Form ID key to get user data from Redis database.
+    Redis key structure: {city_iduser_id}
+
+    Returns:
+        str: formed ID.
+    """
+    return str(city_id).join(str(user_id))
+
+
 async def get_current_user(
     decoded_token: Annotated[DecodedToken, Depends(get_current_decoded_access_token)],
 ) -> User:
     user_id: int | None = decoded_token.decoded_payload.get(USER_ID_KEY)
-    if not user_id:
+    city_id: int | None = decoded_token.decoded_payload.get(CITY_ID_KEY)
+    if not user_id or not city_id:
         raise HTTPException(status_code=401, detail="Invalid token payload.")
 
     try:
         user_query_result: Result = (
-            await CRUD.get(User).where(User.id == user_id).execute()
+            await CRUD.get(User)
+            .where(User.id == user_id, User.city_id == city_id)
+            .execute()
         )
     except SQLAlchemyError:
         raise internal_server_error

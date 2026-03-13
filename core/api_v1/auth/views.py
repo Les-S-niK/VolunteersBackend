@@ -1,7 +1,7 @@
 from typing import Annotated
+from uuid import uuid4
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
-from pydantic import SecretStr
 from redis.asyncio import Redis
 from sqlalchemy import Result
 from sqlalchemy.exc import SQLAlchemyError
@@ -10,6 +10,8 @@ from config import ApiSettings, TokenSettings, get_api_settings, get_token_setti
 from core.api_v1.auth.hashing import hash_password, verify_password
 from core.api_v1.auth.jwt_tokens import create_tokens_pair, decode_access_token
 from core.api_v1.auth.schemas import (
+    CITY_ID_KEY,
+    JWT_ID_KEY,
     USER_ID_KEY,
     DecodedToken,
     EncodedToken,
@@ -17,16 +19,16 @@ from core.api_v1.auth.schemas import (
     TokenTypesEnum,
     UserAuth,
 )
-from core.api_v1.auth.utils import try_verify_password
+from core.api_v1.auth.utils import form_redis_user_id, try_verify_password
 from core.api_v1.error_schemas import (
     InternalServerError,
     InvalidRefreshTokenError,
     NotAuthorized,
 )
+from core.api_v1.http_exceptions import internal_server_error
 from core.database.redis import RedisCRUD, get_refresh_redis
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import User
-from core.api_v1.http_exceptions import internal_server_error
 
 auth_router: APIRouter = APIRouter(prefix="/api/v1/auth", tags=["Authenticate"])
 
@@ -78,17 +80,21 @@ async def refresh_handler(
         raise invalid_token_exception
 
     user_id: int | None = payload.decoded_payload.get(USER_ID_KEY)
-    if not user_id:
+    city_id: int | None = payload.decoded_payload.get(CITY_ID_KEY)
+
+    if not user_id or not city_id:
         raise invalid_token_exception
 
     async with RedisCRUD(redis_db) as redis:
-        token_hash: str | None = await redis.read(str(user_id))
+        token_hash: str | None = await redis.read(
+            form_redis_user_id(city_id=city_id, user_id=user_id)
+        )
 
     if not token_hash or not verify_password(refresh_token, token_hash):
         raise invalid_token_exception
 
     tokens_pair: EncodedTokensPair = create_tokens_pair(
-        data={USER_ID_KEY: user_id},
+        data={JWT_ID_KEY: str(uuid4()), CITY_ID_KEY: city_id, USER_ID_KEY: user_id},
         access_expires_delta=token_settings.access_token_expire,
         access_key=token_settings.ACCESS_SECRET_KEY.get_secret_value(),
         refresh_expires_delta=token_settings.refresh_token_expire,
@@ -99,7 +105,7 @@ async def refresh_handler(
     refresh_ttl: int = int(token_settings.refresh_token_expire.total_seconds())
     async with RedisCRUD(redis_db) as redis:
         await redis.create(
-            key=str(user_id),
+            key=form_redis_user_id(city_id=city_id, user_id=user_id),
             value=hash_password(tokens_pair.refresh_token),
             ttl_seconds=refresh_ttl,
         )
@@ -145,12 +151,11 @@ async def login_handler(
     Returns:
         EncodedToken: encoded JWT access token.
     """
-    user_id: int = user_auth.user_id
-    user_password: SecretStr = user_auth.password
-
     try:
         statement_result: Result = (
-            await CRUD.get(User).where(User.id == user_id).execute()
+            await CRUD.get(User)
+            .where(User.id == user_auth.user_id, User.city_id == user_auth.city_id)
+            .execute()
         )
     except SQLAlchemyError:
         raise internal_server_error
@@ -161,10 +166,14 @@ async def login_handler(
     )
     if not user:
         raise not_found_exception
-    try_verify_password(user_password, user.password, not_found_exception)
+    try_verify_password(user_auth.password, user.password, not_found_exception)
 
     tokens_pair: EncodedTokensPair = create_tokens_pair(
-        data={USER_ID_KEY: user_id},
+        data={
+            JWT_ID_KEY: str(uuid4()),
+            CITY_ID_KEY: user_auth.city_id,
+            USER_ID_KEY: user_auth.user_id,
+        },
         access_expires_delta=token_settings.access_token_expire,
         access_key=token_settings.ACCESS_SECRET_KEY.get_secret_value(),
         refresh_expires_delta=token_settings.refresh_token_expire,
@@ -174,7 +183,9 @@ async def login_handler(
     refresh_ttl: int = int(token_settings.refresh_token_expire.total_seconds())
     async with RedisCRUD(redis_db) as redis:
         await redis.create(
-            key=str(user_id),
+            key=form_redis_user_id(
+                city_id=user_auth.city_id, user_id=user_auth.user_id
+            ),
             value=hash_password(tokens_pair.refresh_token),
             ttl_seconds=refresh_ttl,
         )
