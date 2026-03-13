@@ -88,7 +88,7 @@ class Report(Base):
 
     title: Mapped[str] = mapped_column(String)
     description: Mapped[str] = mapped_column(TEXT)
-    status: Mapped[ReportStatuses] = mapped_column()
+    status: Mapped[ReportStatuses] = mapped_column(default=ReportStatuses.unanswered)
     user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.id"), doc="The user who create a report."
     )
