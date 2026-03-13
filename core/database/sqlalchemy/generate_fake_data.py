@@ -12,6 +12,7 @@ from core.database.sqlalchemy.models import (
     Link,
     PurchaseStatuses,
     Report,
+    ReportStatuses,
     User,
     UserEvent,
     UserGood,
@@ -26,7 +27,7 @@ async def fill_fake_users():
             user: User = User(
                 full_name=fake.name(),
                 birth=fake.date_of_birth(),
-                city_id=randint(100, 1000),
+                city_id=1,
                 passport=f"{randint(1_000, 10_000)} {randint(100_000, 1_000_000)}",
                 phone_number=f"+7{randint(1_000_000_000, 10_000_000_000)}",
                 points=randint(0, 100),
@@ -35,7 +36,6 @@ async def fill_fake_users():
                 else None,
                 password=hash_password(str(i + 1)),
             )
-            print(user)
             await CRUD.add(user, session=session).execute()
 
 
@@ -51,7 +51,7 @@ async def fill_fake_events():
 
 async def fill_fake_links():
     async with CRUD() as session:
-        for i in range(100):
+        for i in range(200):
             is_url_none: bool = bool(not randint(0, 4))
             is_url_proh: bool = bool(randint(0, 1))
 
@@ -78,12 +78,13 @@ async def fill_fake_users_events():
     async with CRUD() as session:
         if randint(0, 2):
             for user in users:
-                for event in events:
-                    if not randint(0, 3):
-                        user_event: UserEvent = UserEvent(
-                            user_id=user.id, event_id=event.id
-                        )
-                        await CRUD.add(user_event, session=session).execute()
+                if not randint(0, 3):
+                    event: Event = choice(events)
+                    events.remove(event)
+                    user_event: UserEvent = UserEvent(
+                        user_id=user.id, event_id=event.id
+                    )
+                    await CRUD.add(user_event, session=session).execute()
 
 
 async def fill_fake_reports():
@@ -94,9 +95,17 @@ async def fill_fake_reports():
         for user in users:
             if not randint(0, 1):
                 continue
+
+            status: ReportStatuses = choice(
+                [
+                    ReportStatuses.answered,
+                    ReportStatuses.unanswered,
+                ]
+            )
             report: Report = Report(
                 title=fake.user_name(),
                 description=fake.color_name(),
+                status=status,
                 user_id=user.id,
             )
             CRUD.add(report, session=session)
@@ -128,19 +137,20 @@ async def fill_fake_user_good():
     async with CRUD() as session:
         if not randint(0, 5):
             for user in users:
-                for good in goods:
-                    if not randint(0, 3):
-                        status: PurchaseStatuses = choice(
-                            [
-                                PurchaseStatuses.frozen,
-                                PurchaseStatuses.denied,
-                                PurchaseStatuses.purchased,
-                            ]
-                        )
-                        user_good: UserGood = UserGood(
-                            user_id=user.id, good_id=good.id, status=status
-                        )
-                        await CRUD.add(user_good, session=session).execute()
+                good: Good = choice(goods)
+                goods.remove(good)
+                if not randint(0, 3):
+                    status: PurchaseStatuses = choice(
+                        [
+                            PurchaseStatuses.frozen,
+                            PurchaseStatuses.denied,
+                            PurchaseStatuses.purchased,
+                        ]
+                    )
+                    user_good: UserGood = UserGood(
+                        user_id=user.id, good_id=good.id, status=status
+                    )
+                    await CRUD.add(user_good, session=session).execute()
 
 
 async def recreate_db() -> None:
