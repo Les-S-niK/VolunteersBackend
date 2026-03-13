@@ -145,7 +145,7 @@ async def login_handler(
     redis_db: Annotated[Redis, Depends(get_refresh_redis)],
 ) -> EncodedToken:
     """
-    Get user's login data (user_id, password), validate it and generate a tokens pair. (Access and refresh tokens)
+    Get user's login data (user_id, city_id, password), validate it and generate a tokens pair. (Access and refresh tokens)
     Set refresh token in the "refresh" httponly cookies field.
 
     Returns:
@@ -153,9 +153,7 @@ async def login_handler(
     """
     try:
         statement_result: Result = (
-            await CRUD.get(User)
-            .where(User.id == user_auth.user_id, User.city_id == user_auth.city_id)
-            .execute()
+            await CRUD.get(User).where(User.id == user_auth.user_id).execute()
         )
     except SQLAlchemyError:
         raise internal_server_error
