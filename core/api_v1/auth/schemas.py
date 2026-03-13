@@ -4,8 +4,9 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, Field, SecretStr
 
-
 USER_ID_KEY: str = "user_id"
+CITY_ID_KEY: str = "city_id"
+JWT_ID_KEY: str = "jwt_id"
 
 
 class TokenTypesEnum(StrEnum):
@@ -52,13 +53,13 @@ class EncodedToken(BaseModel):
         ),
     ]
     token_type: Annotated[
-        str,
+        TokenTypesEnum,
         Field(
             default=...,
             alias="token_type",
             title="Token Type",
             description="JWT token type.",
-            examples=["access", "refresh"],
+            examples=[TokenTypesEnum.access, TokenTypesEnum.refresh],
         ),
     ]
 
@@ -71,7 +72,7 @@ class DecodedToken(BaseModel):
             alias="decoded_payload",
             title="Decoded Token Payload",
             description="Decoded token payload with user data.",
-            examples=[{USER_ID_KEY: 123, "exp": "2026-02-15 20:47"}],
+            examples=[{USER_ID_KEY: 123123, "exp": "2026-02-15 20:47"}],
         ),
     ]
     expiration_date: Annotated[
@@ -94,6 +95,16 @@ class UserAuth(BaseModel):
             alias="user_id",
             title="User ID",
             description="User's id in the database.",
+            examples=[123, 199, 1],
+        ),
+    ]
+    city_id: Annotated[
+        int,
+        Field(
+            default=...,
+            alias="city_id",
+            title="City ID",
+            description="City id in the database.",
             examples=[123, 199, 1],
         ),
     ]
