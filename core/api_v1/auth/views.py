@@ -153,7 +153,9 @@ async def login_handler(
     """
     try:
         statement_result: Result = (
-            await CRUD.get(User).where(User.id == user_auth.user_id).execute()
+            await CRUD.get(User)
+            .where(User.id == user_auth.user_id, User.city_id == user_auth.city_id)
+            .execute()
         )
     except SQLAlchemyError:
         raise internal_server_error
