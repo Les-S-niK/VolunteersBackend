@@ -70,7 +70,6 @@ async def after_verification_handler(
             await session.rollback()
             raise internal_server_error
 
-        await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -125,5 +124,4 @@ async def first_unverified_handler(
             await session.rollback()
             raise internal_server_error
 
-        await session.commit()
     return LinkToVerifyModel(link=HttpUrl(first_unverified_link.link))
