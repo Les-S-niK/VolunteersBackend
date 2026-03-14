@@ -154,5 +154,4 @@ async def user_events_register_handler(
             await session.rollback()
             raise internal_server_error
 
-        await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

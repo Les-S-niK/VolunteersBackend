@@ -215,6 +215,7 @@ class CRUD:
         return self.__local_session
 
     async def __aexit__(self, *_):
+        await self.__local_session.commit()
         await self.__local_session.close()
         return False
 
