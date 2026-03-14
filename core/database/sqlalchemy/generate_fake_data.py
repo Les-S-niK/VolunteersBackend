@@ -37,6 +37,7 @@ async def fill_fake_users():
                 password=hash_password(str(i + 1)),
             )
             await CRUD.add(user, session=session).execute()
+        await session.commit()
 
 
 async def fill_fake_events():
@@ -47,6 +48,7 @@ async def fill_fake_events():
                 datetime=fake.date_time(),
             )
             await CRUD.add(event, session=session).execute()
+        await session.commit()
 
 
 async def fill_fake_links():
@@ -65,6 +67,7 @@ async def fill_fake_links():
                 await CRUD.add(link, session=session).execute()
             except SQLAlchemyError as e:
                 print(e)
+        await session.commit()
 
 
 async def fill_fake_users_events():
@@ -85,6 +88,7 @@ async def fill_fake_users_events():
                         user_id=user.id, event_id=event.id
                     )
                     await CRUD.add(user_event, session=session).execute()
+        await session.commit()
 
 
 async def fill_fake_reports():
@@ -109,6 +113,7 @@ async def fill_fake_reports():
                 user_id=user.id,
             )
             CRUD.add(report, session=session)
+        await session.commit()
 
 
 async def fill_fake_items():
@@ -124,6 +129,7 @@ async def fill_fake_items():
                 await CRUD.add(item, session=session).execute()
             except SQLAlchemyError as e:
                 print(e)
+        await session.commit()
 
 
 async def fill_fake_user_item():
@@ -151,6 +157,7 @@ async def fill_fake_user_item():
                         user_id=user.id, item_id=item.id, status=status
                     )
                     await CRUD.add(user_item, session=session).execute()
+        await session.commit()
 
 
 async def recreate_db() -> None:
