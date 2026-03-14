@@ -8,14 +8,14 @@ from core.api_v1.auth import hash_password
 from core.database.sqlalchemy.db import CRUD, drop_db, init_db
 from core.database.sqlalchemy.models import (
     Event,
-    Good,
+    Item,
     Link,
     PurchaseStatuses,
     Report,
     ReportStatuses,
     User,
     UserEvent,
-    UserGood,
+    UserItem,
 )
 
 fake = Faker()
@@ -111,34 +111,34 @@ async def fill_fake_reports():
             CRUD.add(report, session=session)
 
 
-async def fill_fake_goods():
+async def fill_fake_items():
     async with CRUD() as session:
         for _ in range(100):
-            good: Good = Good(
+            item: Item = Item(
                 image_url=fake.url(),
                 price=randint(0, 1000),
                 amount=randint(0, 20),
                 name=fake.name_male(),
             )
             try:
-                await CRUD.add(good, session=session).execute()
+                await CRUD.add(item, session=session).execute()
             except SQLAlchemyError as e:
                 print(e)
 
 
-async def fill_fake_user_good():
+async def fill_fake_user_item():
     users_result: Result = await CRUD.get(User).where().execute()
     users: list[User] = list(users_result.scalars().all())
-    goods_result: Result = await CRUD.get(Good).where().execute()
-    goods: list[Good] = list(goods_result.scalars().all())
+    items_result: Result = await CRUD.get(Item).where().execute()
+    items: list[Item] = list(items_result.scalars().all())
 
-    if not users or not goods:
+    if not users or not items:
         return
     async with CRUD() as session:
         if not randint(0, 5):
             for user in users:
-                good: Good = choice(goods)
-                goods.remove(good)
+                item: Item = choice(items)
+                items.remove(item)
                 if not randint(0, 3):
                     status: PurchaseStatuses = choice(
                         [
@@ -147,10 +147,10 @@ async def fill_fake_user_good():
                             PurchaseStatuses.purchased,
                         ]
                     )
-                    user_good: UserGood = UserGood(
-                        user_id=user.id, good_id=good.id, status=status
+                    user_item: UserItem = UserItem(
+                        user_id=user.id, item_id=item.id, status=status
                     )
-                    await CRUD.add(user_good, session=session).execute()
+                    await CRUD.add(user_item, session=session).execute()
 
 
 async def recreate_db() -> None:
@@ -162,6 +162,6 @@ async def recreate_db() -> None:
     await fill_fake_events()
     await fill_fake_users_events()
     await fill_fake_reports()
-    await fill_fake_goods()
-    await fill_fake_user_good()
+    await fill_fake_items()
+    await fill_fake_user_item()
     print("End")

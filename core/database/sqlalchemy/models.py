@@ -94,8 +94,8 @@ class Report(Base):
     )
 
 
-class Good(Base):
-    __tablename__ = "goods"
+class Item(Base):
+    __tablename__ = "items"
 
     image_url: Mapped[str] = mapped_column(String)
     price: Mapped[Decimal] = mapped_column(DECIMAL)
@@ -103,13 +103,13 @@ class Good(Base):
     name: Mapped[str] = mapped_column(String)
 
 
-class UserGood(Base):
-    __tablename__ = "users_goods"
+class UserItem(Base):
+    __tablename__ = "users_items"
 
     status: Mapped[PurchaseStatuses] = mapped_column(default=PurchaseStatuses.frozen)
     user_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("users.id"), doc="The user who bought the good."
+        BigInteger, ForeignKey("users.id"), doc="The user who bought the item."
     )
-    good_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("goods.id"), doc="The good that bought by the user."
+    item_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("items.id"), doc="The item that bought by the user."
     )
