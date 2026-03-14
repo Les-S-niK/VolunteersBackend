@@ -100,7 +100,7 @@ class Item(Base):
     image_url: Mapped[str] = mapped_column(String)
     price: Mapped[Decimal] = mapped_column(DECIMAL)
     amount: Mapped[int] = mapped_column(Integer)
-    name: Mapped[str] = mapped_column(String)
+    name: Mapped[str] = mapped_column(String, unique=True)
 
 
 class UserItem(Base):
