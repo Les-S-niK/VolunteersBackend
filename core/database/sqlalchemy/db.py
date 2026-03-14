@@ -63,8 +63,6 @@ class AddAction(QueryAction):
     async def execute(self) -> None:
         try:
             self.session.add(self.item)
-            await self.session.commit()
-            await self.session.refresh(self.item)
 
         except Exception as e:
             if self.own_session:
@@ -112,7 +110,6 @@ class UpdateAction(QueryAction, QueryBuilder):
     async def execute(self) -> Result:
         try:
             result = await self.session.execute(self.stmt)
-            await self.session.commit()
             return result
 
         except Exception as e:
@@ -138,7 +135,6 @@ class DeleteAction(QueryAction, QueryBuilder):
     async def execute(self) -> Result:
         try:
             result = await self.session.execute(self.stmt)
-            await self.session.commit()
             return result
 
         except Exception as e:
