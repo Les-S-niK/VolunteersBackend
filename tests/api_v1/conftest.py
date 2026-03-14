@@ -8,6 +8,7 @@ settings = get_api_settings()
 BASE_URL = f"http://{settings.HOST}:{settings.PORT}"
 TEST_USER_ID = "1"
 TEST_USER_PASSWORD = "1"
+TEST_USER_CITY_ID = "1"
 TEST_DELAY = 1
 TIMEOUT = 5
 
@@ -30,6 +31,7 @@ def session():
 def valid_credentials():
     return {
         "user_id": TEST_USER_ID,
+        "city_id": TEST_USER_CITY_ID,
         "password": TEST_USER_PASSWORD
     }
 

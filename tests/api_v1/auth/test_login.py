@@ -43,30 +43,41 @@ def test_login_returns_unique_tokens(session, valid_credentials):
 def test_login_invalid_password(session, valid_credentials):
     response = session.post(
         f"{BASE_URL}/api/v1/auth/login/",
-        json={"user_id": valid_credentials["user_id"], "password": "wrong"}
+        json={"user_id": valid_credentials["user_id"], "password": "wrong", "city_id": valid_credentials["city_id"]}
     )
 
-    assert response.status_code == 401
     assert response.status_code != 500
+    assert response.status_code == 401
 
 
-def test_login_invalid_user(session):
+def test_login_invalid_city_id(session, valid_credentials):
     response = session.post(
         f"{BASE_URL}/api/v1/auth/login/",
-        json={"user_id": "0", "password": "wrong"}
+        json={"user_id": valid_credentials["user_id"], "password": valid_credentials["password"], "city_id": -1}
     )
 
-    assert response.status_code == 401
     assert response.status_code != 500
+    assert response.status_code == 401
+
+
+def test_login_invalid_user(session, valid_credentials):
+    response = session.post(
+        f"{BASE_URL}/api/v1/auth/login/",
+        json={"user_id": "-1", "password": valid_credentials["password"], "city_id": valid_credentials["city_id"]}
+    )
+
+    assert response.status_code != 500
+    assert response.status_code == 401
 
 
 @pytest.mark.parametrize("payload", [
     {},
     {"user_id": ""},
     {"password": ""},
-    {"user_id": 123, "password": True},
-    {"user_id": None, "password": None},
-    {"user_id": "a"*1000, "password": "b"*1000},
+    {"city_id": ""},
+    {"user_id": 123, "password": True, "city_id": 1000},
+    {"user_id": None, "password": None, "city_id": None},
+    {"user_id": "a"*1000, "password": "b"*1000, "city_id": 2**100},
 ])
 def test_login_bad_input(session, payload):
     response = session.post(
@@ -76,4 +87,3 @@ def test_login_bad_input(session, payload):
 
     assert response.status_code != 500
     assert response.status_code in (401, 422)
-
