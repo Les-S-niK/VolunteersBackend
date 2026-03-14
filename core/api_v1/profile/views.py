@@ -126,9 +126,10 @@ async def user_events_register_handler(
                 .with_for_update()
                 .execute()
             )
+            event_model: Event | None = event_query_result.scalar_one_or_none()
         except SQLAlchemyError:
+            await session.rollback()
             raise internal_server_error
-        event_model: Event | None = event_query_result.scalar_one_or_none()
 
         if not event_model:
             raise HTTPException(
@@ -146,13 +147,12 @@ async def user_events_register_handler(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User can not register for the event after 15 minutes from the moment it starts.",
             )
-
+        new_user_event: UserEvent = UserEvent(event_id=event_model.id, user_id=user.id)
         try:
-            new_user_event: UserEvent = UserEvent(
-                event_id=event_model.id, user_id=user.id
-            )
             await CRUD.add(new_user_event, session=session).execute()
         except SQLAlchemyError:
+            await session.rollback()
             raise internal_server_error
 
+        await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
