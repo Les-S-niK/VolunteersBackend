@@ -44,10 +44,11 @@ async def after_verification_handler(
                 .with_for_update()
                 .execute()
             )
+            found_link: Link | None = link_query_result.scalar_one_or_none()
         except SQLAlchemyError:
+            await session.rollback()
             raise internal_server_error
 
-        found_link: Link | None = link_query_result.scalar_one_or_none()
         if not found_link:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Link not found"
@@ -66,8 +67,10 @@ async def after_verification_handler(
                 .execute()
             )
         except SQLAlchemyError:
+            await session.rollback()
             raise internal_server_error
 
+        await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -103,10 +106,10 @@ async def first_unverified_handler(
                 .with_for_update()
                 .execute()
             )
+            first_unverified_link: Link | None = link_query_result.scalar_one_or_none()
         except SQLAlchemyError:
+            await session.rollback()
             raise internal_server_error
-
-        first_unverified_link: Link | None = link_query_result.scalar_one_or_none()
 
         if not first_unverified_link:
             return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -119,6 +122,8 @@ async def first_unverified_handler(
                 .execute()
             )
         except SQLAlchemyError:
+            await session.rollback()
             raise internal_server_error
 
+        await session.commit()
     return LinkToVerifyModel(link=HttpUrl(first_unverified_link.link))
