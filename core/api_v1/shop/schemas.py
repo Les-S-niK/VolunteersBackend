@@ -8,5 +8,5 @@ class NewPurchaseModel(BaseModel):
         str, Field(default=..., title="Item name", examples=["Milk", "Amogus"])
     ]
     item_amount: Annotated[
-        int, Field(default=..., title="Item amount", examples=[1, 10])
+        int, Field(default=..., title="Item amount", ge=1, examples=[1, 10])
     ]
