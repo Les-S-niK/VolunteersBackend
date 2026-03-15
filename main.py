@@ -6,6 +6,7 @@ from core.api_v1.auth import auth_router
 from core.api_v1.links import links_router
 from core.api_v1.profile import profile_router
 from core.api_v1.report import reports_router
+from core.api_v1.shop import shop_router
 from core.logger.logger import setup_logger
 
 api_settings: ApiSettings = get_api_settings()
@@ -16,6 +17,7 @@ app.include_router(auth_router)
 app.include_router(profile_router)
 app.include_router(links_router)
 app.include_router(reports_router)
+app.include_router(shop_router)
 
 
 if __name__ == "__main__":
