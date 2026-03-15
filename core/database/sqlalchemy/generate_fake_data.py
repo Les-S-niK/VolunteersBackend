@@ -37,7 +37,7 @@ async def fill_fake_users():
                 password=hash_password(str(i + 1)),
             )
             await CRUD.add(user, session=session).execute()
-        await session.commit()
+            await session.commit()
 
 
 async def fill_fake_events():
@@ -48,7 +48,7 @@ async def fill_fake_events():
                 datetime=fake.date_time(),
             )
             await CRUD.add(event, session=session).execute()
-        await session.commit()
+            await session.commit()
 
 
 async def fill_fake_links():
@@ -61,13 +61,14 @@ async def fill_fake_links():
                 link=fake.url(),
                 is_prohibited=None if is_url_none else is_url_proh,
                 priority=randint(0, 10),
-                user_id=i + 1,
+                user_id=randint(0, 100),
             )
             try:
                 await CRUD.add(link, session=session).execute()
+                await session.commit()
             except SQLAlchemyError as e:
+                await session.rollback()
                 print(e)
-        await session.commit()
 
 
 async def fill_fake_users_events():
@@ -88,7 +89,7 @@ async def fill_fake_users_events():
                         user_id=user.id, event_id=event.id
                     )
                     await CRUD.add(user_event, session=session).execute()
-        await session.commit()
+                    await session.commit()
 
 
 async def fill_fake_reports():
@@ -113,7 +114,7 @@ async def fill_fake_reports():
                 user_id=user.id,
             )
             CRUD.add(report, session=session)
-        await session.commit()
+            await session.commit()
 
 
 async def fill_fake_items():
@@ -129,7 +130,7 @@ async def fill_fake_items():
                 await CRUD.add(item, session=session).execute()
             except SQLAlchemyError as e:
                 print(e)
-        await session.commit()
+            await session.commit()
 
 
 async def fill_fake_user_item():
@@ -141,23 +142,22 @@ async def fill_fake_user_item():
     if not users or not items:
         return
     async with CRUD() as session:
-        if not randint(0, 5):
-            for user in users:
-                item: Item = choice(items)
-                items.remove(item)
-                if not randint(0, 3):
-                    status: PurchaseStatuses = choice(
-                        [
-                            PurchaseStatuses.frozen,
-                            PurchaseStatuses.denied,
-                            PurchaseStatuses.purchased,
-                        ]
-                    )
-                    user_item: UserItem = UserItem(
-                        user_id=user.id, item_id=item.id, status=status
-                    )
-                    await CRUD.add(user_item, session=session).execute()
-        await session.commit()
+        for user in users:
+            item: Item = choice(items)
+            items.remove(item)
+            if not randint(0, 3):
+                status: PurchaseStatuses = choice(
+                    [
+                        PurchaseStatuses.frozen,
+                        PurchaseStatuses.denied,
+                        PurchaseStatuses.purchased,
+                    ]
+                )
+                user_item: UserItem = UserItem(
+                    user_id=user.id, item_id=item.id, status=status
+                )
+                await CRUD.add(user_item, session=session).execute()
+                await session.commit()
 
 
 async def recreate_db() -> None:

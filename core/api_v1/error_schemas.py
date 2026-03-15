@@ -33,5 +33,9 @@ class InternalServerError(ErrorResponse):
     error: str = "Internal Server Error"
 
 
+class UnprocessableContentError(ErrorResponse):
+    error: str = "Unprocessable content"
+
+
 class InvalidRefreshTokenError(NotAuthorized):
     error: str = "Invalid refresh token"
