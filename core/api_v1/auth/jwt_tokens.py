@@ -6,6 +6,10 @@ from jwt.exceptions import InvalidKeyError
 
 from core.api_v1.auth.schemas import DecodedToken, EncodedTokensPair
 
+ACCESS_TOKEN_KEY: str = "access_token"
+REFRESH_TOKEN_KEY: str = "refresh_token"
+EXP_KEY: str = "exp"
+
 
 def create_access_token(
     data: dict[str, Any], expires_delta: timedelta, key: str, algorithm: str
@@ -25,7 +29,7 @@ def create_access_token(
 
     payload_to_encode: dict[str, Any] = data.copy()
     expires: datetime = datetime.now(timezone.utc) + expires_delta
-    payload_to_encode.update({"exp": expires})
+    payload_to_encode.update({EXP_KEY: expires})
 
     return jwt.encode(payload=payload_to_encode, key=key, algorithm=algorithm)
 
@@ -43,14 +47,14 @@ def decode_access_token(
     Returns:
         DecodedToken - Token data and it's expiration time.
     """
-    try: 
+    try:
         decoded_payload: dict[str, Any] = jwt.decode(
             jwt=encoded_jwt, key=key, algorithms=algorithms
         )
     except jwt.PyJWTError:
         return None
 
-    expires: datetime | None = decoded_payload.get("exp")
+    expires: datetime | None = decoded_payload.get(EXP_KEY)
     if not expires:
         return None
 

@@ -1,17 +1,24 @@
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pwdlib.exceptions import UnknownHashError
 from pydantic import SecretStr
+from redis.asyncio import Redis
 from sqlalchemy import Result
 from sqlalchemy.exc import SQLAlchemyError
 
 from config import TokenSettings, get_token_settings
 from core.api_v1.auth.hashing import verify_password
 from core.api_v1.auth.jwt_tokens import decode_access_token
-from core.api_v1.auth.schemas import CITY_ID_KEY, USER_ID_KEY, DecodedToken
-from core.api_v1.http_exceptions import internal_server_error
+from core.api_v1.auth.schemas import CITY_ID_KEY, JWT_ID_KEY, USER_ID_KEY, DecodedToken
+from core.api_v1.http_exceptions import (
+    internal_server_error,
+    invalid_token_payload,
+    not_authorized,
+)
+from core.database.redis import RedisCRUD, get_tokens_blacklist_redis
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import User
 
@@ -29,7 +36,7 @@ async def get_current_decoded_access_token(
         algorithms=[token_settings.ALGORITHM],
     )
     if not decoded_token:
-        raise HTTPException(status_code=401, detail="Invalid token payload.")
+        raise invalid_token_payload
 
     return decoded_token
 
@@ -47,12 +54,35 @@ def form_redis_user_id(city_id: int, user_id: int) -> str:
 
 async def get_current_user(
     decoded_token: Annotated[DecodedToken, Depends(get_current_decoded_access_token)],
+    redis_blacklist_db: Annotated[Redis, Depends(get_tokens_blacklist_redis)],
 ) -> User:
+    """
+    Get current API user dependency.
+    Validate access token and check it in the blacklist.
+
+    Returns:
+        User: If the token is valid and not in the blacklist.
+
+    Raises:
+        HTTPException with statuses 401 (Token is invalid) or 500 (Internal server error)
+    """
     user_id: int | None = decoded_token.decoded_payload.get(USER_ID_KEY)
     city_id: int | None = decoded_token.decoded_payload.get(CITY_ID_KEY)
     if not user_id or not city_id:
-        raise HTTPException(status_code=401, detail="Invalid token payload.")
+        raise invalid_token_payload
 
+    jwt_index: UUID | None = decoded_token.decoded_payload.get(JWT_ID_KEY)
+    if not jwt_index:
+        raise invalid_token_payload
+
+    try:
+        async with RedisCRUD(redis_blacklist_db) as redis:
+            blacklist_access_token: str | None = await redis.read(key=str(jwt_index))
+    except Exception:
+        raise internal_server_error
+
+    if blacklist_access_token:
+        raise not_authorized
     try:
         user_query_result: Result = (
             await CRUD.get(User)
@@ -64,8 +94,7 @@ async def get_current_user(
     user: User | None = user_query_result.scalar_one_or_none()
 
     if not user:
-        raise HTTPException(status_code=401, detail="User not found.")
-
+        raise not_authorized
     return user
 
 

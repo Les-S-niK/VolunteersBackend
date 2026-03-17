@@ -2,7 +2,7 @@ from core.database.redis.crud import RedisCRUD
 from core.database.redis.engine import (
     get_redis,
     get_refresh_redis,
-    refresh_db_name,
+    get_tokens_blacklist_redis,
 )
 
-__all__ = ["get_redis", "get_refresh_redis", "refresh_db_name", "RedisCRUD"]
+__all__ = ["get_redis", "get_refresh_redis", "RedisCRUD", "get_tokens_blacklist_redis"]

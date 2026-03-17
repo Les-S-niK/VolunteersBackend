@@ -1,5 +1,6 @@
+import datetime as dt
 from typing import Annotated
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from redis.asyncio import Redis
@@ -8,7 +9,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from config import ApiSettings, TokenSettings, get_api_settings, get_token_settings
 from core.api_v1.auth.hashing import hash_password, verify_password
-from core.api_v1.auth.jwt_tokens import create_tokens_pair, decode_access_token
+from core.api_v1.auth.jwt_tokens import (
+    REFRESH_TOKEN_KEY,
+    create_tokens_pair,
+    decode_access_token,
+)
 from core.api_v1.auth.schemas import (
     CITY_ID_KEY,
     JWT_ID_KEY,
@@ -19,14 +24,23 @@ from core.api_v1.auth.schemas import (
     TokenTypesEnum,
     UserAuth,
 )
-from core.api_v1.auth.utils import form_redis_user_id, try_verify_password
+from core.api_v1.auth.utils import (
+    form_redis_user_id,
+    get_current_decoded_access_token,
+    get_current_user,
+    try_verify_password,
+)
 from core.api_v1.error_schemas import (
     InternalServerError,
     InvalidRefreshTokenError,
     NotAuthorized,
 )
-from core.api_v1.http_exceptions import internal_server_error
-from core.database.redis import RedisCRUD, get_refresh_redis
+from core.api_v1.http_exceptions import (
+    internal_server_error,
+    invalid_token_payload,
+    not_authorized,
+)
+from core.database.redis import RedisCRUD, get_refresh_redis, get_tokens_blacklist_redis
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import User
 
@@ -62,7 +76,7 @@ async def refresh_handler(
     Returns:
         EncodedToken: encoded JWT access token.
     """
-    refresh_token: str | None = request.cookies.get("refresh_token")
+    refresh_token: str | None = request.cookies.get(REFRESH_TOKEN_KEY)
     if not refresh_token:
         raise HTTPException(
             status_code=401, detail="Can't find refresh token in cookies."
@@ -85,10 +99,13 @@ async def refresh_handler(
     if not user_id or not city_id:
         raise invalid_token_exception
 
-    async with RedisCRUD(redis_db) as redis:
-        token_hash: str | None = await redis.read(
-            form_redis_user_id(city_id=city_id, user_id=user_id)
-        )
+    try:
+        async with RedisCRUD(redis_db) as redis:
+            token_hash: str | None = await redis.read(
+                form_redis_user_id(city_id=city_id, user_id=user_id)
+            )
+    except Exception:
+        raise internal_server_error
 
     if not token_hash or not verify_password(refresh_token, token_hash):
         raise invalid_token_exception
@@ -103,15 +120,18 @@ async def refresh_handler(
     )
 
     refresh_ttl: int = int(token_settings.refresh_token_expire.total_seconds())
-    async with RedisCRUD(redis_db) as redis:
-        await redis.create(
-            key=form_redis_user_id(city_id=city_id, user_id=user_id),
-            value=hash_password(tokens_pair.refresh_token),
-            ttl_seconds=refresh_ttl,
-        )
+    try:
+        async with RedisCRUD(redis_db) as redis:
+            await redis.create(
+                key=form_redis_user_id(city_id=city_id, user_id=user_id),
+                value=hash_password(tokens_pair.refresh_token),
+                ttl_seconds=refresh_ttl,
+            )
+    except Exception:
+        raise internal_server_error
 
     response.set_cookie(
-        key="refresh_token",
+        key=REFRESH_TOKEN_KEY,
         value=tokens_pair.refresh_token,
         httponly=True,
         secure=api_settings.SECURE,
@@ -161,12 +181,9 @@ async def login_handler(
         raise internal_server_error
     user: User | None = statement_result.scalar_one_or_none()
 
-    not_found_exception: HTTPException = HTTPException(
-        status_code=401, detail="Not authorized"
-    )
     if not user:
-        raise not_found_exception
-    try_verify_password(user_auth.password, user.password, not_found_exception)
+        raise not_authorized
+    try_verify_password(user_auth.password, user.password, not_authorized)
 
     tokens_pair: EncodedTokensPair = create_tokens_pair(
         data={
@@ -181,16 +198,20 @@ async def login_handler(
         algorithm=token_settings.ALGORITHM,
     )
     refresh_ttl: int = int(token_settings.refresh_token_expire.total_seconds())
-    async with RedisCRUD(redis_db) as redis:
-        await redis.create(
-            key=form_redis_user_id(
-                city_id=user_auth.city_id, user_id=user_auth.user_id
-            ),
-            value=hash_password(tokens_pair.refresh_token),
-            ttl_seconds=refresh_ttl,
-        )
+    try:
+        async with RedisCRUD(redis_db) as redis:
+            await redis.create(
+                key=form_redis_user_id(
+                    city_id=user_auth.city_id, user_id=user_auth.user_id
+                ),
+                value=hash_password(tokens_pair.refresh_token),
+                ttl_seconds=refresh_ttl,
+            )
+    except Exception:
+        raise internal_server_error
+
     response.set_cookie(
-        key="refresh_token",
+        key=REFRESH_TOKEN_KEY,
         value=tokens_pair.refresh_token,
         httponly=True,
         secure=api_settings.SECURE,
@@ -201,3 +222,55 @@ async def login_handler(
     return EncodedToken(
         token=tokens_pair.access_token, token_type=TokenTypesEnum.access
     )
+
+
+@auth_router.delete(
+    path="/logout/",
+    responses={
+        status.HTTP_204_NO_CONTENT: {"description": "User logged out successfully."},
+        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
+    },
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def logout_handler(
+    response: Response,
+    user: Annotated[User, Depends(get_current_user)],
+    redis_blacklist_db: Annotated[Redis, Depends(get_tokens_blacklist_redis)],
+    redis_refresh_db: Annotated[Redis, Depends(get_refresh_redis)],
+    decoded_token: Annotated[DecodedToken, Depends(get_current_decoded_access_token)],
+) -> Response:
+    try:
+        async with RedisCRUD(redis_refresh_db) as redis_refresh:
+            await redis_refresh.delete(
+                key=form_redis_user_id(user_id=user.id, city_id=user.city_id)
+            )
+    except Exception:
+        raise internal_server_error
+
+    response.delete_cookie(REFRESH_TOKEN_KEY)
+    access_ttl: int = int(
+        (
+            decoded_token.expiration_date - dt.datetime.now(dt.timezone.utc)
+        ).total_seconds()
+    )
+    jwt_index: UUID | None = decoded_token.decoded_payload.get(JWT_ID_KEY)
+
+    if not jwt_index or access_ttl < 0:
+        raise invalid_token_payload
+
+    default_blacklist_value: str = "blacklist"
+    try:
+        async with RedisCRUD(redis_blacklist_db) as redis_blacklist:
+            ## We do not need to store any value for the jwt index key
+            ## because the /login/ endpoint will check only if jwt index in the blackilist.
+            await redis_blacklist.create(
+                key=str(jwt_index),
+                value=default_blacklist_value,
+                ttl_seconds=access_ttl,
+            )
+    except Exception:
+        raise internal_server_error
+
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return response
