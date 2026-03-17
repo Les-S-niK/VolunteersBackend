@@ -6,7 +6,7 @@ from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-APP_VERSION: str = "0.1.1"
+APP_VERSION: str = "0.1.5"
 
 
 class ApiSettings(BaseSettings):
