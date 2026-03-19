@@ -1,11 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Body, Depends, Response, status
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.status import HTTP_201_CREATED
 
 from core.api_v1.auth import get_current_user
 from core.api_v1.error_schemas import InternalServerError
+from core.api_v1.http_exceptions import internal_server_error
 from core.api_v1.report.schemas import ReportModel
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import Report, ReportStatuses, User
@@ -39,13 +40,9 @@ async def new_report_handler(
         status=ReportStatuses.unanswered,
         user_id=user.id,
     )
-
     try:
         await CRUD.add(report).execute()
     except SQLAlchemyError:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error. Can not add report with these input data.",
-        )
+        raise internal_server_error
 
     return Response(status_code=HTTP_201_CREATED)
