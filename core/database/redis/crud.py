@@ -1,5 +1,6 @@
 from typing import Self
 
+from core.logger import redis_query_logger
 from redis.asyncio import Redis
 from redis.exceptions import ConnectionError
 
@@ -24,6 +25,7 @@ class RedisCRUD:
         if self.session:
             await self.session.close()
 
+    @redis_query_logger
     async def create(
         self, key: str, value: str, ttl_seconds: int | None = None
     ) -> None:
@@ -35,11 +37,13 @@ class RedisCRUD:
         else:
             await self.session.setex(name=key, time=ttl_seconds, value=value)
 
+    @redis_query_logger
     async def delete(self, key: str) -> None:
         if not self.session:
             raise RedisSessionNotInitializedError(operation="delete")
         await self.session.delete(key)
 
+    @redis_query_logger
     async def read(self, key: str) -> str | None:
         if not self.session:
             raise RedisSessionNotInitializedError(operation="read")

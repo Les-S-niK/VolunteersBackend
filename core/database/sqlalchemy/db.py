@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from config import DBSettings, get_db_settings
-from core.logger.logger import database_query_logger, execute_query_logger
+from core.logger import database_query_logger, execute_query_logger
 
 settings: DBSettings = get_db_settings()
 engine: AsyncEngine = create_async_engine(url=settings.get_db_url())
