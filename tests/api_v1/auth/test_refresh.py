@@ -1,130 +1,107 @@
-from conftest import BASE_URL, TEST_DELAY
+from conftest import (
+    TEST_DELAY,
+    api_post,
+    assert_refresh_cookie,
+    assert_token_response,
+    login,
+)
 from time import sleep
 
 
 def test_refresh_success(session, valid_credentials):
-    login_response = session.post(
-        f"{BASE_URL}/api/v1/auth/login/",
-        json=valid_credentials
-    )
-    assert login_response.status_code == 200
-    assert "refresh_token" in session.cookies.get_dict()
-    
-    refresh_response = session.post(f"{BASE_URL}/api/v1/auth/refresh/")
-    
-    assert refresh_response.status_code == 200
-    assert "token" in refresh_response.json()
+    login_response = login(session, valid_credentials)
+    assert_token_response(login_response)
+    assert_refresh_cookie(session)
+
+    refresh_response = api_post(session, "/api/v1/auth/refresh/")
+
+    assert_token_response(refresh_response)
 
 
 def test_refresh_without_refresh_token(session):
-    response = session.post(f"{BASE_URL}/api/v1/auth/refresh/")
-    
+    response = api_post(session, "/api/v1/auth/refresh/")
+
     assert response.status_code == 401
     assert "refresh token" in response.json()["detail"].lower()
 
 
 def test_refresh_with_invalid_refresh_token(session):
     session.cookies.set("refresh_token", "invalid.token.value")
-    response = session.post(f"{BASE_URL}/api/v1/auth/refresh/")
-    
+    response = api_post(session, "/api/v1/auth/refresh/")
+
     assert response.status_code == 401
     assert "invalid" in response.json()["detail"].lower()
 
 
 def test_refresh_with_tampered_token(session, valid_credentials):
-    login_response = session.post(
-        f"{BASE_URL}/api/v1/auth/login/",
-        json=valid_credentials
-    )
-    assert login_response.status_code == 200
-    
-    original_token = session.cookies.get("refresh_token")
+    login_response = login(session, valid_credentials)
+    assert_token_response(login_response)
+
+    original_token = assert_refresh_cookie(session)
     tampered_token = original_token[:-5] + "xxxxx"
-    
+
     session.cookies.set("refresh_token", tampered_token)
-    response = session.post(f"{BASE_URL}/api/v1/auth/refresh/")
-    
+    response = api_post(session, "/api/v1/auth/refresh/")
+
     assert response.status_code == 401
 
 
 def test_refresh_returns_unique_tokens(session, valid_credentials):
-    login_response = session.post(
-        f"{BASE_URL}/api/v1/auth/login/",
-        json=valid_credentials
-    )
-    assert login_response.status_code == 200
-    
-    refresh_response1 = session.post(f"{BASE_URL}/api/v1/auth/refresh/")
-    assert refresh_response1.status_code == 200
-    token1 = refresh_response1.json()["token"]
-    
+    login_response = login(session, valid_credentials)
+    assert_token_response(login_response)
+
+    refresh_response1 = api_post(session, "/api/v1/auth/refresh/")
+    token1 = assert_token_response(refresh_response1)["token"]
+
     sleep(TEST_DELAY)
-    
-    refresh_response2 = session.post(f"{BASE_URL}/api/v1/auth/refresh/")
-    assert refresh_response2.status_code == 200
-    token2 = refresh_response2.json()["token"]
-    
+
+    refresh_response2 = api_post(session, "/api/v1/auth/refresh/")
+    token2 = assert_token_response(refresh_response2)["token"]
+
     assert token1 != token2
 
 
 def test_refresh_returns_new_refresh_token_cookie(session, valid_credentials):
-    login_response = session.post(
-        f"{BASE_URL}/api/v1/auth/login/",
-        json=valid_credentials
-    )
-    assert login_response.status_code == 200
-    old_refresh_token = session.cookies.get("refresh_token")
-    
+    login_response = login(session, valid_credentials)
+    assert_token_response(login_response)
+    old_refresh_token = assert_refresh_cookie(session)
+
     sleep(TEST_DELAY)
-    refresh_response = session.post(f"{BASE_URL}/api/v1/auth/refresh/")
-    
-    assert refresh_response.status_code == 200
-    new_refresh_token = session.cookies.get("refresh_token")
-    
-    assert new_refresh_token is not None
+    refresh_response = api_post(session, "/api/v1/auth/refresh/")
+    assert_token_response(refresh_response)
+    new_refresh_token = assert_refresh_cookie(session)
+
     assert old_refresh_token != new_refresh_token
 
 
 def test_refresh_multiple_times_in_sequence(session, valid_credentials):
-    login_response = session.post(
-        f"{BASE_URL}/api/v1/auth/login/",
-        json=valid_credentials
-    )
-    assert login_response.status_code == 200
-    
-    for i in range(8):
-        response = session.post(f"{BASE_URL}/api/v1/auth/refresh/")
-        assert response.status_code == 200
-        assert "token" in response.json()
-        assert "refresh_token" in session.cookies.get_dict()
-        sleep(0.2)
+    login_response = login(session, valid_credentials)
+    assert_token_response(login_response)
+
+    for _ in range(8):
+        response = api_post(session, "/api/v1/auth/refresh/")
+        assert_token_response(response)
+        assert_refresh_cookie(session)
 
 
 def test_refresh_returns_access_token_type(session, valid_credentials):
-    login_response = session.post(
-        f"{BASE_URL}/api/v1/auth/login/",
-        json=valid_credentials
-    )
-    assert login_response.status_code == 200
-    
-    refresh_response = session.post(f"{BASE_URL}/api/v1/auth/refresh/")
-    
-    assert refresh_response.status_code == 200
-    body = refresh_response.json()
-    assert "token" in body
-    assert "token_type" in body
-    assert body["token_type"] == "access"
+    login_response = login(session, valid_credentials)
+    assert_token_response(login_response)
+
+    refresh_response = api_post(session, "/api/v1/auth/refresh/")
+
+    assert_token_response(refresh_response)
 
 
 def test_refresh_empty_cookie_value(session):
     session.cookies.set("refresh_token", "")
-    response = session.post(f"{BASE_URL}/api/v1/auth/refresh/")
-    
+    response = api_post(session, "/api/v1/auth/refresh/")
+
     assert response.status_code == 401
 
 
 def test_refresh_with_whitespace_token(session):
     session.cookies.set("refresh_token", "   ")
-    response = session.post(f"{BASE_URL}/api/v1/auth/refresh/")
-    
+    response = api_post(session, "/api/v1/auth/refresh/")
+
     assert response.status_code == 401
