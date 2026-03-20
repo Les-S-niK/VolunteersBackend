@@ -41,3 +41,19 @@ def execute_query_logger(func: Callable) -> Callable:
         return result
 
     return wrapper
+
+
+def redis_query_logger(func: Callable) -> Callable:
+    @wraps(func)
+    async def wrapper(self, *args, **kwargs) -> Any:
+        try:
+            result: Any = await func(self, *args, **kwargs)
+        except Exception as e:
+            message: str = (
+                f"Redis query: {func.__name__}\n\tArgs: {args}.\n\tKwargs: {kwargs}."
+            )
+            logger.error(message)
+            raise e
+        return result
+
+    return wrapper
