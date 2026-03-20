@@ -10,7 +10,7 @@ class LinkToVerifyModel(BaseModel):
             default=...,
             title="Site URL",
             description="URL that need to be checked for prohibition.",
-            examples=["https://example.com"],
+            examples=["https://example.com/"],
         ),
     ]
 
