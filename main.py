@@ -7,7 +7,7 @@ from core.api_v1.links import links_router
 from core.api_v1.profile import profile_router
 from core.api_v1.report import reports_router
 from core.api_v1.shop import shop_router
-from core.logger.logger import setup_logger
+from core.logger import setup_logger
 
 api_settings: ApiSettings = get_api_settings()
 setup_logger()
