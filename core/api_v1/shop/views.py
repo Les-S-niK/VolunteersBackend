@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from core.api_v1.auth.utils import get_current_user
 from core.api_v1.error_schemas import (
     InternalServerError,
+    NotAuthorized,
     NotFoundError,
     UnprocessableContentError,
 )
@@ -22,6 +23,7 @@ shop_router: APIRouter = APIRouter(prefix="/api/v1/shop", tags=["Shop"])
     path="/new_purchase/",
     responses={
         status.HTTP_201_CREATED: {"description": "Purchase added in the database."},
+        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
         status.HTTP_404_NOT_FOUND: {
             "model": NotFoundError,
             "description": "Item not found.",
