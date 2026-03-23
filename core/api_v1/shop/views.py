@@ -112,6 +112,7 @@ async def new_purchase_handler(
             "model": list[ItemModel],
             "description": "All the items in the database.",
         },
+        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
 )
