@@ -8,6 +8,7 @@ class ReportModel(BaseModel):
         Field(
             default=...,
             title="Report Title",
+            min_length=12,
             examples=["Important Report", "Api does not work!"],
         ),
     ]
@@ -16,6 +17,7 @@ class ReportModel(BaseModel):
         Field(
             default=...,
             title="Report Description",
+            min_length=12,
             examples=["Very informative description.", "Example"],
         ),
     ]
