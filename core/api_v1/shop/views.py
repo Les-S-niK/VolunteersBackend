@@ -7,11 +7,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from core.api_v1.auth.utils import get_current_user
 from core.api_v1.error_schemas import (
     InternalServerError,
+    NotAuthorized,
     NotFoundError,
     UnprocessableContentError,
 )
 from core.api_v1.http_exceptions import internal_server_error
-from core.api_v1.shop.schemas import NewPurchaseModel
+from core.api_v1.shop.schemas import ItemModel, NewPurchaseModel
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import Item, PurchaseStatuses, User, UserItem
 
@@ -22,6 +23,7 @@ shop_router: APIRouter = APIRouter(prefix="/api/v1/shop", tags=["Shop"])
     path="/new_purchase/",
     responses={
         status.HTTP_201_CREATED: {"description": "Purchase added in the database."},
+        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
         status.HTTP_404_NOT_FOUND: {
             "model": NotFoundError,
             "description": "Item not found.",
@@ -101,3 +103,26 @@ async def new_purchase_handler(
             raise internal_server_error
 
         return Response(status_code=status.HTTP_201_CREATED)
+
+
+@shop_router.get(
+    path="/all_items/",
+    responses={
+        status.HTTP_200_OK: {
+            "model": list[ItemModel],
+            "description": "All the items in the database.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
+    },
+)
+async def all_items_handler(
+    _: Annotated[User, Depends(get_current_user)],
+) -> list[ItemModel]:
+    try:
+        result: Result = await CRUD.get(Item).where().execute()
+    except SQLAlchemyError:
+        raise internal_server_error
+    database_items: list[ItemModel] = list(result.scalars().all())
+
+    return database_items

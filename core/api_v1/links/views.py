@@ -6,7 +6,12 @@ from sqlalchemy import Result
 from sqlalchemy.exc import SQLAlchemyError
 
 from core.api_v1.auth import get_current_user
-from core.api_v1.error_schemas import Forbidden, InternalServerError, NotFoundError
+from core.api_v1.error_schemas import (
+    Forbidden,
+    InternalServerError,
+    NotAuthorized,
+    NotFoundError,
+)
 from core.api_v1.http_exceptions import internal_server_error
 from core.api_v1.links.schemas import LinkToVerifyModel, VerifiedLinkResult
 from core.database.sqlalchemy.db import CRUD
@@ -20,6 +25,7 @@ links_router: APIRouter = APIRouter(prefix="/api/v1/links", tags=["Links"])
     description='Set a new value in the "is_prohibited" link field after link verification.',
     responses={
         status.HTTP_204_NO_CONTENT: {"description": "Link status was patched."},
+        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
         status.HTTP_403_FORBIDDEN: {"model": Forbidden},
         status.HTTP_404_NOT_FOUND: {"model": NotFoundError},
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
@@ -83,6 +89,7 @@ async def after_verification_handler(
             "description": "Successfully got a link from the DB.",
         },
         status.HTTP_204_NO_CONTENT: {"description": "No content"},
+        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
             "model": InternalServerError,
         },
