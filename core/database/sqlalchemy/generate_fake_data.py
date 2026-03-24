@@ -53,15 +53,12 @@ async def fill_fake_events():
 
 async def fill_fake_links():
     async with CRUD() as session:
-        for i in range(200):
-            is_url_none: bool = bool(not randint(0, 4))
-            is_url_proh: bool = bool(randint(0, 1))
-
+        for _ in range(500):
             link: Link = Link(
                 link=fake.url(),
-                is_prohibited=None if is_url_none else is_url_proh,
+                is_prohibited=None,
                 priority=randint(0, 10),
-                user_id=randint(0, 100),
+                user_id=None,
             )
             try:
                 await CRUD.add(link, session=session).execute()
