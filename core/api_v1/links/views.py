@@ -2,9 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from pydantic import HttpUrl
-from sqlalchemy import Result
+from sqlalchemy import Result, values
 from sqlalchemy.exc import SQLAlchemyError
 
+from config import ApiSettings, get_api_settings
 from core.api_v1.auth import get_current_user
 from core.api_v1.error_schemas import (
     Forbidden,
@@ -37,10 +38,12 @@ links_router: APIRouter = APIRouter(prefix="/api/v1/links", tags=["Links"])
 async def after_verification_handler(
     link: Annotated[VerifiedLinkResult, Body()],
     user: Annotated[User, Depends(get_current_user)],
+    api_settings: Annotated[ApiSettings, Depends(get_api_settings)],
 ) -> Response:
     """
     Patch links.is_prohibited field in the database.
     Only user who took a link can patch the field.
+    Add 1 point to user if is_prohibited is true and ENABLE_USER_REWARD enabled.
     """
     async with CRUD() as session:
         try:
@@ -72,6 +75,14 @@ async def after_verification_handler(
                 .values(is_prohibited=link.is_prohibited)
                 .execute()
             )
+            if found_link.is_prohibited and api_settings.ENABLE_USER_REWARD:
+                await (
+                    CRUD.update(User, session=session)
+                    .where(User.id == user.id)
+                    .values(points=user.points + 1)
+                    .execute()
+                )
+
         except SQLAlchemyError:
             await session.rollback()
             raise internal_server_error

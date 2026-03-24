@@ -6,7 +6,7 @@ from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-APP_VERSION: str = "0.1.5"
+APP_VERSION: str = "0.1.9"
 
 
 class ApiSettings(BaseSettings):
@@ -34,6 +34,14 @@ class ApiSettings(BaseSettings):
             default=True,
             title="Secure flag. (HTTPS)",
             description="Force HTTPS secure connection. (For cookies for example.)",
+        ),
+    ] = True
+    ENABLE_USER_REWARD: Annotated[
+        bool,
+        Field(
+            default=True,
+            title="Enable user reward",
+            description="Flag to enable a reward after links verification.",
         ),
     ] = True
 
