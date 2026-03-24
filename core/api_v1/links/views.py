@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from pydantic import HttpUrl
-from sqlalchemy import Result, values
+from sqlalchemy import Result
 from sqlalchemy.exc import SQLAlchemyError
 
 from config import ApiSettings, get_api_settings
@@ -49,7 +49,7 @@ async def after_verification_handler(
         try:
             link_query_result: Result = (
                 await CRUD.get(Link, session=session)
-                .where(Link.link == str(link.link))
+                .where(Link.link == str(link.link), Link.is_prohibited.is_(None))
                 .with_for_update()
                 .execute()
             )
@@ -60,7 +60,8 @@ async def after_verification_handler(
 
         if not found_link:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Link not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Link not found or checked already.",
             )
         if found_link.user_id != user.id:
             raise HTTPException(
