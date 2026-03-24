@@ -112,9 +112,21 @@ async def first_unverified_handler(
     """
     Get the first unverified link with max priority from the database and return it.
     Patch the links.user_id field by user's ID who took it.
+    If the user already took a link and did not check it return this link again.
     """
     async with CRUD() as session:
         try:
+            already_taken_link_result: Result = (
+                await CRUD.get(Link, session=session)
+                .where(Link.user_id == user.id, Link.is_prohibited.is_(None))
+                .execute()
+            )
+            already_taken_link: Link | None = (
+                already_taken_link_result.scalar_one_or_none()
+            )
+            if already_taken_link:
+                return LinkToVerifyModel(link=HttpUrl(already_taken_link.link))
+
             link_query_result: Result = (
                 await CRUD.get(Link, session=session)
                 .where(Link.is_prohibited.is_(None))
@@ -124,7 +136,8 @@ async def first_unverified_handler(
                 .execute()
             )
             first_unverified_link: Link | None = link_query_result.scalar_one_or_none()
-        except SQLAlchemyError:
+        except SQLAlchemyError as e:
+            print(e)
             await session.rollback()
             raise internal_server_error
 
