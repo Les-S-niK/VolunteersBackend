@@ -21,20 +21,37 @@ def test_patch_first_unverified_success(session, auth_headers):
 async def test_patch_first_unverified_sets_current_user_id(
     session, auth_headers, current_user_id
 ):
-    response = api_patch(session, "/api/v1/links/first_unverified/", headers=auth_headers)
+    async with CRUD() as cleanup_session:
+        await (
+            CRUD.delete(Link, session=cleanup_session)
+            .where(Link.user_id == current_user_id, Link.is_prohibited.is_(None))
+            .execute()
+        )
 
-    if response.status_code == 204:
-        return
-
-    assert response.status_code == 200
-    link_url = response.json()["link"]
-    link_query_result: Result = (
-        await CRUD.get(Link).where(Link.link == link_url).execute()
+    test_link_url = f"https://first-unverified-test-{uuid4().hex}.example.com"
+    test_link = Link(
+        link=test_link_url,
+        is_prohibited=None,
+        priority=10**9,
+        user_id=None,
     )
-    link: Link | None = link_query_result.scalar_one_or_none()
+    await CRUD.add(test_link).execute()
 
-    assert link is not None
-    assert link.user_id == current_user_id
+    try:
+        response = api_patch(session, "/api/v1/links/first_unverified/", headers=auth_headers)
+
+        assert response.status_code == 200
+        link_url = response.json()["link"]
+        assert link_url.rstrip("/") == test_link_url.rstrip("/")
+
+        link_query_result: Result = (
+            await CRUD.get(Link).where(Link.link == test_link_url).execute()
+        )
+        link: Link | None = link_query_result.scalar_one_or_none()
+        assert link is not None
+        assert link.user_id == current_user_id
+    finally:
+        await CRUD.delete(Link).where(Link.id == test_link.id).execute()
 
 
 def test_patch_first_unverified_unauthorized_no_token(session):
@@ -52,14 +69,21 @@ def test_patch_first_unverified_unauthorized_invalid_token(session):
 async def test_patch_first_unverified_returns_highest_priority_link(
     session, auth_headers, current_user_id
 ):
+    async with CRUD() as cleanup_session:
+        await (
+            CRUD.delete(Link, session=cleanup_session)
+            .where(Link.user_id == current_user_id, Link.is_prohibited.is_(None))
+            .execute()
+        )
+
     low_priority_url = f"https://first-unverified-low-{uuid4().hex}.example.com"
     high_priority_url = f"https://first-unverified-high-{uuid4().hex}.example.com"
 
     low_link = Link(
-        link=low_priority_url, is_prohibited=None, priority=10_000, user_id=None
+        link=low_priority_url, is_prohibited=None, priority=10**9, user_id=None
     )
     high_link = Link(
-        link=high_priority_url, is_prohibited=None, priority=10_001, user_id=None
+        link=high_priority_url, is_prohibited=None, priority=10**9 + 1, user_id=None
     )
 
     await CRUD.add(low_link).execute()
@@ -114,4 +138,3 @@ async def test_patch_first_unverified_returns_no_content_when_no_unverified_link
         assert_no_content(response, 204)
     finally:
         await CRUD.delete(Link).where(Link.id == verified_link.id).execute()
-

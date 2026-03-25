@@ -78,7 +78,7 @@ def test_patch_link_not_found(session, auth_headers):
     )
 
     assert response.status_code == 404
-    assert_error_detail(response, "Link not found")
+    assert_error_detail(response, "Link not found or checked already.")
 
 
 def test_patch_link_validation_error_invalid_url(session, auth_headers):
