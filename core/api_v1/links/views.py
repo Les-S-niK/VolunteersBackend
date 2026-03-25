@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from pydantic import HttpUrl
-from sqlalchemy import Result, values
+from sqlalchemy import Result
 from sqlalchemy.exc import SQLAlchemyError
 
 from config import ApiSettings, get_api_settings
@@ -49,7 +49,7 @@ async def after_verification_handler(
         try:
             link_query_result: Result = (
                 await CRUD.get(Link, session=session)
-                .where(Link.link == str(link.link))
+                .where(Link.link == str(link.link), Link.is_prohibited.is_(None))
                 .with_for_update()
                 .execute()
             )
@@ -60,7 +60,8 @@ async def after_verification_handler(
 
         if not found_link:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Link not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Link not found or checked already.",
             )
         if found_link.user_id != user.id:
             raise HTTPException(
@@ -112,9 +113,21 @@ async def first_unverified_handler(
     """
     Get the first unverified link with max priority from the database and return it.
     Patch the links.user_id field by user's ID who took it.
+    If the user already took a link and did not check it return this link again.
     """
     async with CRUD() as session:
         try:
+            already_taken_link_result: Result = (
+                await CRUD.get(Link, session=session)
+                .where(Link.user_id == user.id, Link.is_prohibited.is_(None))
+                .execute()
+            )
+            already_taken_link: Link | None = (
+                already_taken_link_result.scalar_one_or_none()
+            )
+            if already_taken_link:
+                return LinkToVerifyModel(link=HttpUrl(already_taken_link.link))
+
             link_query_result: Result = (
                 await CRUD.get(Link, session=session)
                 .where(Link.is_prohibited.is_(None))
@@ -124,7 +137,8 @@ async def first_unverified_handler(
                 .execute()
             )
             first_unverified_link: Link | None = link_query_result.scalar_one_or_none()
-        except SQLAlchemyError:
+        except SQLAlchemyError as e:
+            print(e)
             await session.rollback()
             raise internal_server_error
 
