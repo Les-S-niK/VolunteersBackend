@@ -81,7 +81,11 @@ async def new_purchase_handler(
                 )
 
             user_item: UserItem = UserItem(
-                user_id=user.id, item_id=item.id, status=PurchaseStatuses.frozen
+                user_id=user.id,
+                item_id=item.id,
+                status=PurchaseStatuses.frozen,
+                items_amount=new_purchase_model.item_amount,
+                item_price=item.price,
             )
             await CRUD.add(user_item, session=session).execute()
             await (
