@@ -120,7 +120,7 @@ async def all_items_handler(
     _: Annotated[User, Depends(get_current_user)],
 ) -> list[ItemModel]:
     try:
-        result: Result = await CRUD.get(Item).where().execute()
+        result: Result = await CRUD.get(Item).where().order_by(Item.id).execute()
     except SQLAlchemyError:
         raise internal_server_error
     database_items: list[ItemModel] = list(result.scalars().all())
