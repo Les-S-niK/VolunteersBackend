@@ -151,7 +151,11 @@ async def fill_fake_user_item():
                     ]
                 )
                 user_item: UserItem = UserItem(
-                    user_id=user.id, item_id=item.id, status=status
+                    user_id=user.id,
+                    item_id=item.id,
+                    status=status,
+                    items_amount=1,
+                    item_price=item.price,
                 )
                 await CRUD.add(user_item, session=session).execute()
                 await session.commit()

@@ -107,6 +107,10 @@ class UserItem(Base):
     __tablename__ = "users_items"
 
     status: Mapped[PurchaseStatuses] = mapped_column(default=PurchaseStatuses.frozen)
+    items_amount: Mapped[int] = mapped_column(Integer, doc="Bought items amount.")
+    item_price: Mapped[Decimal] = mapped_column(
+        DECIMAL, doc="Item price at the moment of purchase."
+    )
     user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.id"), doc="The user who bought the item."
     )

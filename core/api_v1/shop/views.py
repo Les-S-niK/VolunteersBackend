@@ -81,7 +81,11 @@ async def new_purchase_handler(
                 )
 
             user_item: UserItem = UserItem(
-                user_id=user.id, item_id=item.id, status=PurchaseStatuses.frozen
+                user_id=user.id,
+                item_id=item.id,
+                status=PurchaseStatuses.frozen,
+                items_amount=new_purchase_model.item_amount,
+                item_price=item.price,
             )
             await CRUD.add(user_item, session=session).execute()
             await (
@@ -120,7 +124,7 @@ async def all_items_handler(
     _: Annotated[User, Depends(get_current_user)],
 ) -> list[ItemModel]:
     try:
-        result: Result = await CRUD.get(Item).where().execute()
+        result: Result = await CRUD.get(Item).where().order_by(Item.id).execute()
     except SQLAlchemyError:
         raise internal_server_error
     database_items: list[ItemModel] = list(result.scalars().all())
