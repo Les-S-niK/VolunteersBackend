@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import FastAPI
 from uvicorn import run
 
@@ -8,6 +9,7 @@ from core.api_v1.profile import profile_router
 from core.api_v1.report import reports_router
 from core.api_v1.shop import shop_router
 from core.logger import setup_logger
+from core.database_export import users_export
 
 api_settings: ApiSettings = get_api_settings()
 setup_logger()
@@ -21,9 +23,10 @@ app.include_router(shop_router)
 
 
 if __name__ == "__main__":
-    run(
-        "main:app",
-        host=api_settings.HOST,
-        port=api_settings.PORT,
-        reload=api_settings.RELOAD,
-    )
+    asyncio.run(users_export.save_all_users_events_to_xlsx())
+    # run(
+    #     "main:app",
+    #     host=api_settings.HOST,
+    #     port=api_settings.PORT,
+    #     reload=api_settings.RELOAD,
+    # )
