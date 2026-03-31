@@ -10,26 +10,33 @@ from core.api_v1.error_schemas import (
     NotAuthorized,
     NotFoundError,
     UnprocessableContentError,
+    TooManyRequestsError,
 )
 from core.api_v1.http_exceptions import internal_server_error
 from core.api_v1.shop.schemas import ItemModel, NewPurchaseModel
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import Item, PurchaseStatuses, User, UserItem
 
-shop_router: APIRouter = APIRouter(prefix="/api/v1/shop", tags=["Shop"])
+shop_router: APIRouter = APIRouter(
+    prefix="/api/v1/shop",
+    tags=["Shop"],
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
+        status.HTTP_429_TOO_MANY_REQUESTS: {"model": TooManyRequestsError},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
+    },
+)
 
 
 @shop_router.post(
     path="/new_purchase/",
     responses={
         status.HTTP_201_CREATED: {"description": "Purchase added in the database."},
-        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
         status.HTTP_404_NOT_FOUND: {
             "model": NotFoundError,
             "description": "Item not found.",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": UnprocessableContentError},
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
     status_code=status.HTTP_201_CREATED,
 )
@@ -116,8 +123,6 @@ async def new_purchase_handler(
             "model": list[ItemModel],
             "description": "All the items in the database.",
         },
-        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
 )
 async def all_items_handler(
