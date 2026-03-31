@@ -1,10 +1,12 @@
 from datetime import timedelta
 from functools import lru_cache
+from os import path
 from typing import Annotated
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from guard import SecurityConfig
 
 APP_VERSION: str = "0.1.9"
 
@@ -133,3 +135,48 @@ def get_redis_settings() -> RedisSettings:
 @lru_cache
 def get_db_settings() -> DBSettings:
     return DBSettings()
+
+
+@lru_cache
+def get_guard_setings() -> SecurityConfig:
+    workdir: str = path.dirname(__file__)
+    log_path: str = path.join(workdir, "core", "logger", "logs", "guard.log")
+    ## FIXME: Enable secure options in production.
+    return SecurityConfig(
+        custom_log_file=log_path,
+        rate_limit=200,
+        auto_ban_threshold=20,
+        auto_ban_duration=600,  ## 10 minutes
+        enable_penetration_detection=True,
+        ## TODO: Configure CORS.
+        # enable_cors=True,
+        # cors_allow_origins=["*"],
+        # cors_allow_methods=["GET", "POST"],
+        # cors_allow_headers=["*"],
+        # cors_allow_credentials=True,
+        # cors_max_age=600,
+        # security_headers={
+        #     "enabled": True,
+        #     "hsts": {
+        #         "max_age": 31536000,  ## 1 year
+        #         "include_subdomains": True,
+        #         "preload": False,
+        #     },
+        ## TODO: Configure CSP.
+        #     "csp": {
+        #         "default-src": ["'self'"],
+        #         # "script-src": ["'self'", "https://trusted.cdn.com"],
+        #         # "style-src": ["'self'", "'unsafe-inline'"],
+        #         # "img-src": ["'self'", "data:", "https:"],
+        #         # "connect-src": ["'self'", "https://api.example.com"],
+        #         "frame-ancestors": ["'none'"],
+        #         "base-uri": ["'self'"],
+        #         "form-action": ["'self'"],
+        #     },
+        #     "frame_options": "DENY",
+        #     "content_type_options": "nosniff",
+        #     "xss_protection": "1; mode=block",
+        #     "referrer_policy": "strict-origin-when-cross-origin",
+        #     "permissions_policy": "geolocation=(), microphone=(), camera=()",
+        # },
+    )

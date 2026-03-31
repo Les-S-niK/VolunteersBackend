@@ -12,13 +12,22 @@ from core.api_v1.error_schemas import (
     InternalServerError,
     NotAuthorized,
     NotFoundError,
+    TooManyRequestsError,
 )
 from core.api_v1.http_exceptions import internal_server_error
 from core.api_v1.links.schemas import LinkToVerifyModel, VerifiedLinkResult
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import Link, User
 
-links_router: APIRouter = APIRouter(prefix="/api/v1/links", tags=["Links"])
+links_router: APIRouter = APIRouter(
+    prefix="/api/v1/links",
+    tags=["Links"],
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
+        status.HTTP_429_TOO_MANY_REQUESTS: {"model": TooManyRequestsError},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
+    },
+)
 
 
 @links_router.patch(
@@ -26,12 +35,8 @@ links_router: APIRouter = APIRouter(prefix="/api/v1/links", tags=["Links"])
     description='Set a new value in the "is_prohibited" link field after link verification.',
     responses={
         status.HTTP_204_NO_CONTENT: {"description": "Link status was patched."},
-        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
         status.HTTP_403_FORBIDDEN: {"model": Forbidden},
         status.HTTP_404_NOT_FOUND: {"model": NotFoundError},
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {
-            "model": InternalServerError,
-        },
     },
     status_code=status.HTTP_204_NO_CONTENT,
 )
@@ -101,10 +106,6 @@ async def after_verification_handler(
             "description": "Successfully got a link from the DB.",
         },
         status.HTTP_204_NO_CONTENT: {"description": "No content"},
-        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {
-            "model": InternalServerError,
-        },
     },
 )
 async def first_unverified_handler(

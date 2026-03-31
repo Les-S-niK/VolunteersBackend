@@ -34,6 +34,7 @@ from core.api_v1.error_schemas import (
     InternalServerError,
     InvalidRefreshTokenError,
     NotAuthorized,
+    TooManyRequestsError,
 )
 from core.api_v1.http_exceptions import (
     internal_server_error,
@@ -44,7 +45,14 @@ from core.database.redis import RedisCRUD, get_refresh_redis, get_tokens_blackli
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import User
 
-auth_router: APIRouter = APIRouter(prefix="/api/v1/auth", tags=["Authenticate"])
+auth_router: APIRouter = APIRouter(
+    prefix="/api/v1/auth",
+    tags=["Authenticate"],
+    responses={
+        status.HTTP_429_TOO_MANY_REQUESTS: {"model": TooManyRequestsError},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
+    },
+)
 
 
 SECONDS_IN_DAY: int = 86400
@@ -59,7 +67,6 @@ SECONDS_IN_DAY: int = 86400
             "model": InvalidRefreshTokenError,
             "detail": "Invalid refresh token.",
         },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
 )
 async def refresh_handler(
@@ -154,7 +161,6 @@ async def refresh_handler(
             "model": NotAuthorized,
             "description": "Not authorized",
         },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
 )
 async def login_handler(
@@ -229,7 +235,6 @@ async def login_handler(
     responses={
         status.HTTP_204_NO_CONTENT: {"description": "User logged out successfully."},
         status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
     status_code=status.HTTP_204_NO_CONTENT,
 )
