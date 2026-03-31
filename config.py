@@ -148,6 +148,9 @@ def get_guard_setings() -> SecurityConfig:
         auto_ban_threshold=20,
         auto_ban_duration=600,  ## 10 minutes
         enable_penetration_detection=True,
+        ## FIXME: Only for developnent.
+        passive_mode=True,
+        whitelist=["127.0.0.1"],
         ## TODO: Configure CORS.
         # enable_cors=True,
         # cors_allow_origins=["*"],
