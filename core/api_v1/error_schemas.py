@@ -15,6 +15,11 @@ class ErrorResponse(BaseModel):
     details: str | None
 
 
+class TooManyRequestsError(ErrorResponse):
+    error: str = "Too many requests."
+    details: str | None = "You have been blocked by API"
+
+
 class NotFoundError(ErrorResponse):
     error: str = "Not found"
 

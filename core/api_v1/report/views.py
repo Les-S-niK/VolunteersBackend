@@ -5,13 +5,25 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.status import HTTP_201_CREATED
 
 from core.api_v1.auth import get_current_user
-from core.api_v1.error_schemas import InternalServerError, NotAuthorized
+from core.api_v1.error_schemas import (
+    InternalServerError,
+    NotAuthorized,
+    TooManyRequestsError,
+)
 from core.api_v1.http_exceptions import internal_server_error
 from core.api_v1.report.schemas import ReportModel
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import Report, ReportStatuses, User
 
-reports_router: APIRouter = APIRouter(prefix="/api/v1/reports", tags=["Reports"])
+reports_router: APIRouter = APIRouter(
+    prefix="/api/v1/reports",
+    tags=["Reports"],
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
+        status.HTTP_429_TOO_MANY_REQUESTS: {"model": TooManyRequestsError},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
+    },
+)
 
 
 @reports_router.post(
@@ -19,8 +31,6 @@ reports_router: APIRouter = APIRouter(prefix="/api/v1/reports", tags=["Reports"]
     description="Add a new report in the database.",
     responses={
         status.HTTP_201_CREATED: {"description": "Report added in the database."},
-        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
     status_code=status.HTTP_201_CREATED,
 )

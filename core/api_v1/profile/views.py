@@ -11,6 +11,7 @@ from core.api_v1.error_schemas import (
     InternalServerError,
     NotAuthorized,
     NotFoundError,
+    TooManyRequestsError,
 )
 from core.api_v1.http_exceptions import internal_server_error
 from core.api_v1.profile.schemas import (
@@ -22,7 +23,15 @@ from core.api_v1.profile.schemas import (
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import Event, User, UserEvent
 
-profile_router: APIRouter = APIRouter(prefix="/api/v1/profiles", tags=["Profile"])
+profile_router: APIRouter = APIRouter(
+    prefix="/api/v1/profiles",
+    tags=["Profile"],
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
+        status.HTTP_429_TOO_MANY_REQUESTS: {"model": TooManyRequestsError},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
+    },
+)
 
 
 @profile_router.get(
@@ -30,11 +39,6 @@ profile_router: APIRouter = APIRouter(prefix="/api/v1/profiles", tags=["Profile"
     description="Get user's profile.",
     responses={
         status.HTTP_200_OK: {"model": UserProfile},
-        status.HTTP_401_UNAUTHORIZED: {
-            "model": NotAuthorized,
-            "description": "User not authorized.",
-        },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
 )
 async def profiles_handler(
@@ -51,11 +55,6 @@ async def profiles_handler(
     description="Get all the events in which the user participated.",
     responses={
         status.HTTP_200_OK: {"model": Events},
-        status.HTTP_401_UNAUTHORIZED: {
-            "model": NotAuthorized,
-            "description": "User not authorized.",
-        },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
 )
 async def user_events_get_handler(
@@ -91,10 +90,6 @@ async def user_events_get_handler(
     description="Register the user for the event. ( The user can do that within 15 minutes from the moment event starts. )",
     responses={
         status.HTTP_204_NO_CONTENT: {"description": "No content."},
-        status.HTTP_401_UNAUTHORIZED: {
-            "model": NotAuthorized,
-            "description": "User not authorized.",
-        },
         status.HTTP_403_FORBIDDEN: {
             "model": Forbidden,
             "description": "User can not register for the event after 15 minutes from the moment it starts.",
@@ -103,7 +98,6 @@ async def user_events_get_handler(
             "model": NotFoundError,
             "description": "Can not find event with the provided ID.",
         },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
     status_code=status.HTTP_204_NO_CONTENT,
 )
