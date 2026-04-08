@@ -78,7 +78,11 @@ async def after_verification_handler(
             await (
                 CRUD.update(Link, session=session)
                 .where(Link.id == found_link.id)
-                .values(is_prohibited=link.is_prohibited)
+                .values(
+                    is_prohibited=link.is_prohibited,
+                    violation_type=link.violation_type,
+                    content_type=link.content_type,
+                )
                 .execute()
             )
             if found_link.is_prohibited and api_settings.ENABLE_USER_REWARD:

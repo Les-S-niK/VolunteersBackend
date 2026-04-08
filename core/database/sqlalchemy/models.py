@@ -16,6 +16,7 @@ from sqlalchemy import (
     String,
 )
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.types import ARRAY
 
 from core.database.sqlalchemy.db import Base
 
@@ -74,6 +75,15 @@ class Link(Base):
         default=None,
         doc="Link priority from 0.0 to 10.0 where 10 - the most important. None - priority not entered.",
     )
+    violation_type: Mapped[str | None] = mapped_column(
+        String,
+        nullable=True,
+        default=None,
+    )
+    content_type: Mapped[list[str] | None] = mapped_column(
+        ARRAY(String), nullable=True, default=None
+    )
+
     user_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey("users.id"),

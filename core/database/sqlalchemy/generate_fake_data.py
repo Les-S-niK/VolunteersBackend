@@ -53,11 +53,13 @@ async def fill_fake_events():
 
 async def fill_fake_links():
     async with CRUD() as session:
-        for _ in range(500):
+        for _ in range(200):
             link: Link = Link(
                 link=fake.url(),
                 is_prohibited=None,
                 priority=randint(0, 10),
+                violation_type=fake.name(),
+                content_type=["text", "image"],
                 user_id=None,
             )
             try:

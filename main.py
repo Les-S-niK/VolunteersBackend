@@ -1,13 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from guard import SecurityMiddleware
 from uvicorn import run
 
 from config import (
     APP_VERSION,
     ApiSettings,
     get_api_settings,
-    get_guard_setings,
     get_cors_origins,
+    get_guard_setings,
 )
 from core.api_v1.auth import auth_router
 from core.api_v1.links import links_router
@@ -15,7 +16,6 @@ from core.api_v1.profile import profile_router
 from core.api_v1.report import reports_router
 from core.api_v1.shop import shop_router
 from core.logger import setup_logger
-from guard import SecurityMiddleware
 
 api_settings: ApiSettings = get_api_settings()
 setup_logger()
