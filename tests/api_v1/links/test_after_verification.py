@@ -13,7 +13,9 @@ from core.database.sqlalchemy.models import Link
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_patch_link_status_success(session, auth_headers, current_user_id, create_link):
+async def test_patch_link_status_success(
+    session, auth_headers, current_user_id, create_link
+):
     link = await create_link(
         link=f"https://after-verification-success-{uuid4().hex}.example.com/",
         user_id=current_user_id,
@@ -23,7 +25,7 @@ async def test_patch_link_status_success(session, auth_headers, current_user_id,
         response = api_patch(
             session,
             "/api/v1/links/after_verification/",
-            json={"link": link.link, "is_prohibited": True},
+            json={"link": link.link, "is_prohibited": True, "violation_type": "Danger"},
             headers=auth_headers,
         )
 
@@ -56,7 +58,11 @@ async def test_patch_link_status_forbidden_not_owner(
         response = api_patch(
             session,
             "/api/v1/links/after_verification/",
-            json={"link": link.link, "is_prohibited": False},
+            json={
+                "link": link.link,
+                "is_prohibited": False,
+                "violation_type": "Amogus",
+            },
             headers=auth_headers,
         )
 
@@ -73,6 +79,7 @@ def test_patch_link_not_found(session, auth_headers):
         json={
             "link": f"https://nonexistent-domain-{uuid4().hex}.com",
             "is_prohibited": True,
+            "violation_type": "Amogus",
         },
         headers=auth_headers,
     )
@@ -85,7 +92,11 @@ def test_patch_link_validation_error_invalid_url(session, auth_headers):
     response = api_patch(
         session,
         "/api/v1/links/after_verification/",
-        json={"link": "not-a-valid-url", "is_prohibited": True},
+        json={
+            "link": "not-a-valid-url",
+            "is_prohibited": True,
+            "violation_type": "Amogus",
+        },
         headers=auth_headers,
     )
 
@@ -107,14 +118,20 @@ def test_patch_link_unauthorized_no_token(session):
     response = api_patch(
         session,
         "/api/v1/links/after_verification/",
-        json={"link": "https://example.com", "is_prohibited": True},
+        json={
+            "link": "https://example.com",
+            "is_prohibited": True,
+            "violation_type": "Amogus",
+        },
     )
 
     assert response.status_code == 401
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_patch_link_false_value(session, auth_headers, current_user_id, create_link):
+async def test_patch_link_false_value(
+    session, auth_headers, current_user_id, create_link
+):
     link = await create_link(
         link=f"https://after-verification-false-{uuid4().hex}.example.com/",
         user_id=current_user_id,
@@ -124,7 +141,11 @@ async def test_patch_link_false_value(session, auth_headers, current_user_id, cr
         response = api_patch(
             session,
             "/api/v1/links/after_verification/",
-            json={"link": link.link, "is_prohibited": False},
+            json={
+                "link": link.link,
+                "is_prohibited": False,
+                "violation_type": "Amogus",
+            },
             headers=auth_headers,
         )
 
