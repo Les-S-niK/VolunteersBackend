@@ -35,12 +35,12 @@ class User(Base):
     __tablename__ = "users"
 
     full_name: Mapped[str]
-    birth: Mapped[dt.date] = mapped_column(Date)
-    passport: Mapped[str]
-    phone_number: Mapped[str]
+    birth: Mapped[dt.date | None] = mapped_column(Date, default=None)
+    passport: Mapped[str | None] = mapped_column(default=None)
+    phone_number: Mapped[str | None] = mapped_column(default=None)
     points: Mapped[int] = mapped_column(default="0", server_default="0")
     password: Mapped[str]
-    telegram_id: Mapped[int | None] = mapped_column(BigInteger)
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
     city_id: Mapped[int] = mapped_column(SmallInteger)
 
 

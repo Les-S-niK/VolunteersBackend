@@ -11,7 +11,6 @@ from core.database.sqlalchemy.db import CRUD
 
 
 async def main():
-    """Основная функция"""
     filename: str = "links.txt"
     print(
         f'Для работы программы необходимо наличие файла "{filename}" в текущей директории. '
