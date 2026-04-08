@@ -138,26 +138,24 @@ def get_db_settings() -> DBSettings:
 
 
 @lru_cache
+def get_cors_origins() -> list[str]:
+    return ["http://127.0.0.1:8081", "http://localhost:8081"]
+
+
+@lru_cache
 def get_guard_setings() -> SecurityConfig:
     workdir: str = path.dirname(__file__)
     log_path: str = path.join(workdir, "core", "logger", "logs", "guard.log")
-    ## FIXME: Enable secure options in production.
+    # FIXME: Enable secure options in production.
     return SecurityConfig(
         custom_log_file=log_path,
-        rate_limit=200,
-        auto_ban_threshold=20,
-        auto_ban_duration=600,  ## 10 minutes
-        enable_penetration_detection=True,
+        # rate_limit=200,
+        # auto_ban_threshold=20,
+        # auto_ban_duration=600,  ## 10 minutes
+        # enable_penetration_detection=True,
         ## FIXME: Only for developnent.
         passive_mode=True,
-        whitelist=["127.0.0.1"],
-        ## TODO: Configure CORS.
-        # enable_cors=True,
-        # cors_allow_origins=["*"],
-        # cors_allow_methods=["GET", "POST"],
-        # cors_allow_headers=["*"],
-        # cors_allow_credentials=True,
-        # cors_max_age=600,
+        # whitelist=["127.0.0.1"],
         # security_headers={
         #     "enabled": True,
         #     "hsts": {
