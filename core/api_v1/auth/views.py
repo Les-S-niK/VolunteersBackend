@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, 
 from redis.asyncio import Redis
 from sqlalchemy import Result
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.status import HTTP_204_NO_CONTENT
 
 from config import ApiSettings, TokenSettings, get_api_settings, get_token_settings
 from core.api_v1.auth.hashing import hash_password, verify_password
@@ -18,6 +19,7 @@ from core.api_v1.auth.schemas import (
     CITY_ID_KEY,
     JWT_ID_KEY,
     USER_ID_KEY,
+    ChangePasswordModel,
     DecodedToken,
     EncodedToken,
     EncodedTokensPair,
@@ -32,11 +34,11 @@ from core.api_v1.auth.utils import (
 )
 from core.api_v1.error_schemas import (
     InternalServerError,
-    InvalidRefreshTokenError,
     NotAuthorized,
     TooManyRequestsError,
 )
 from core.api_v1.http_exceptions import (
+    forbidden,
     internal_server_error,
     invalid_token_payload,
     not_authorized,
@@ -50,6 +52,10 @@ auth_router: APIRouter = APIRouter(
     tags=["Authenticate"],
     responses={
         status.HTTP_429_TOO_MANY_REQUESTS: {"model": TooManyRequestsError},
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": NotAuthorized,
+            "description": "Not authorized",
+        },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
 )
@@ -63,10 +69,6 @@ SECONDS_IN_DAY: int = 86400
     description="Get access token by provided refresh token in the cookies.",
     responses={
         status.HTTP_200_OK: {"model": EncodedToken},
-        status.HTTP_401_UNAUTHORIZED: {
-            "model": InvalidRefreshTokenError,
-            "detail": "Invalid refresh token.",
-        },
     },
 )
 async def refresh_handler(
@@ -157,10 +159,6 @@ async def refresh_handler(
     description="Create access and refresh tokens based on user data.",
     responses={
         status.HTTP_200_OK: {"model": EncodedToken},
-        status.HTTP_401_UNAUTHORIZED: {
-            "model": NotAuthorized,
-            "description": "Not authorized",
-        },
     },
 )
 async def login_handler(
@@ -172,7 +170,7 @@ async def login_handler(
 ) -> EncodedToken:
     """
     Get user's login data (user_id, city_id, password), validate it and generate a tokens pair. (Access and refresh tokens)
-    Set refresh token in the "refresh" httponly cookies field.
+    Set refresh token in the "refresh" http only cookies field.
 
     Returns:
         EncodedToken: encoded JWT access token.
@@ -232,9 +230,9 @@ async def login_handler(
 
 @auth_router.delete(
     path="/logout/",
+    description="Logout from the user's account.",
     responses={
         status.HTTP_204_NO_CONTENT: {"description": "User logged out successfully."},
-        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
     },
     status_code=status.HTTP_204_NO_CONTENT,
 )
@@ -268,7 +266,7 @@ async def logout_handler(
     try:
         async with RedisCRUD(redis_blacklist_db) as redis_blacklist:
             ## We do not need to store any value for the jwt index key
-            ## because the /login/ endpoint will check only if jwt index in the blackilist.
+            ## because the /login/ endpoint will check only if jwt index in the blacklist.
             await redis_blacklist.create(
                 key=str(jwt_index),
                 value=default_blacklist_value,
@@ -279,3 +277,56 @@ async def logout_handler(
 
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
+
+
+@auth_router.patch(
+    path="/change_password/",
+    description="Change user's password to a new one.",
+    status_code=HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "Password has changed successfully."
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "User can not access this resource."
+        },
+    },
+)
+async def change_password_handler(
+    user: Annotated[User, Depends(get_current_user)],
+    password_data: Annotated[ChangePasswordModel, Body(title="User's password data.")],
+) -> Response:
+    async with CRUD() as session:
+        try:
+            user_result: Result = (
+                await CRUD.get(User, session=session)
+                .where(User.id == user.id)
+                .with_for_update()
+                .execute()
+            )
+            user_from_db: User | None = user_result.scalar_one_or_none()
+        except Exception:
+            await session.rollback()
+            raise internal_server_error
+
+        if not user_from_db or not verify_password(
+            password_data.old_password.get_secret_value(), user.password
+        ):
+            raise forbidden
+
+        try:
+            await (
+                CRUD.update(User, session=session)
+                .where(User.id == user_from_db.id)
+                .values(
+                    password=hash_password(
+                        password_data.new_password.get_secret_value()
+                    )
+                )
+                .execute()
+            )
+        except Exception:
+            await session.rollback()
+            raise internal_server_error
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
