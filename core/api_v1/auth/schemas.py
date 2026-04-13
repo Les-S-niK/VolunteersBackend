@@ -118,3 +118,24 @@ class UserAuth(BaseModel):
             examples=["VeryStrongPassword1234"],
         ),
     ]
+
+
+class ChangePasswordModel(BaseModel):
+    old_password: Annotated[
+        SecretStr,
+        Field(
+            default=...,
+            title="Old password",
+            description="Old user's password to change.",
+            examples=["OldStrongPassword1234"],
+        ),
+    ]
+    new_password: Annotated[
+        SecretStr,
+        Field(
+            default=...,
+            title="New password",
+            description="New user's password.",
+            examples=["NewStrongestPassword4321"],
+        ),
+    ]
