@@ -21,33 +21,36 @@ def test_change_password_success(session, valid_credentials):
     )
     assert_no_content(response, 204)
 
-    login_response_fail = login(session, valid_credentials)
+    old_creds = {
+        "user_id": valid_credentials["user_id"],
+        "password": old_password,
+        "city_id": valid_credentials["city_id"],
+    }
+    login_response_fail = login(session, old_creds)
     assert login_response_fail.status_code == 401
 
     new_credentials = {
-        "email": valid_credentials["email"],
+        "user_id": valid_credentials["user_id"],
         "password": new_password,
+        "city_id": valid_credentials["city_id"],
     }
     login_response_new = login(session, new_credentials)
     assert_token_response(login_response_new)
 
-    try:
-        login_after_change = login(session, new_credentials)
-        token2 = assert_token_response(login_after_change)["token"]
-        headers2 = {"Authorization": f"Bearer {token2}"}
-        restore_payload = {
-            "old_password": new_password,
-            "new_password": old_password,
-        }
-        restore_response = api_patch(
-            session,
-            "/api/v1/auth/change_password/",
-            json=restore_payload,
-            headers=headers2,
-        )
-        assert_no_content(restore_response, 204)
-    finally:
-        pass
+    login_after_change = login(session, new_credentials)
+    token2 = assert_token_response(login_after_change)["token"]
+    headers2 = {"Authorization": f"Bearer {token2}"}
+    restore_payload = {
+        "old_password": new_password,
+        "new_password": old_password,
+    }
+    restore_response = api_patch(
+        session,
+        "/api/v1/auth/change_password/",
+        json=restore_payload,
+        headers=headers2,
+    )
+    assert_no_content(restore_response, 204)
 
 
 def test_change_password_wrong_old_password(session, valid_credentials):
@@ -101,7 +104,6 @@ def test_change_password_same_as_old(session, valid_credentials):
     token = assert_token_response(login_response)["token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Try to set the same password as old one
     payload = {
         "old_password": valid_credentials["password"],
         "new_password": valid_credentials["password"],
@@ -112,6 +114,4 @@ def test_change_password_same_as_old(session, valid_credentials):
         json=payload,
         headers=headers,
     )
-    # The endpoint currently allows this (returns 204)
-    # This test documents the current behavior
     assert_no_content(response, 204)
