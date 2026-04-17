@@ -1,7 +1,8 @@
+import datetime as dt
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pwdlib.exceptions import UnknownHashError
 from pydantic import SecretStr
@@ -11,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from config import TokenSettings, get_token_settings
 from core.api_v1.auth.hashing import verify_password
-from core.api_v1.auth.jwt_tokens import decode_access_token
+from core.api_v1.auth.jwt_tokens import REFRESH_TOKEN_KEY, decode_access_token
 from core.api_v1.auth.schemas import CITY_ID_KEY, JWT_ID_KEY, USER_ID_KEY, DecodedToken
 from core.api_v1.http_exceptions import (
     internal_server_error,
@@ -19,6 +20,7 @@ from core.api_v1.http_exceptions import (
     not_authorized,
 )
 from core.database.redis import RedisCRUD, get_tokens_blacklist_redis
+from core.database.redis.engine import get_refresh_redis
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import User
 
@@ -108,3 +110,46 @@ def try_verify_password(
         raise exception
 
     return True
+
+
+async def user_logout(
+    user: User,
+    response: Response,
+    redis_blacklist_db: Redis,
+    redis_refresh_db: Redis,
+    decoded_token: DecodedToken,
+) -> Response:
+    try:
+        async with RedisCRUD(redis_refresh_db) as redis_refresh:
+            await redis_refresh.delete(
+                key=form_redis_user_id(user_id=user.id, city_id=user.city_id)
+            )
+    except Exception:
+        raise internal_server_error
+
+    response.delete_cookie(REFRESH_TOKEN_KEY)
+    access_ttl: int = int(
+        (
+            decoded_token.expiration_date - dt.datetime.now(dt.timezone.utc)
+        ).total_seconds()
+    )
+    jwt_index: UUID | None = decoded_token.decoded_payload.get(JWT_ID_KEY)
+
+    if not jwt_index or access_ttl < 0:
+        raise invalid_token_payload
+
+    default_blacklist_value: str = "blacklist"
+    try:
+        async with RedisCRUD(redis_blacklist_db) as redis_blacklist:
+            ## We do not need to store any value for the jwt index key
+            ## because the /login/ endpoint will check only if jwt index in the blacklist.
+            await redis_blacklist.create(
+                key=str(jwt_index),
+                value=default_blacklist_value,
+                ttl_seconds=access_ttl,
+            )
+    except Exception:
+        raise internal_server_error
+
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return response

@@ -31,6 +31,7 @@ from core.api_v1.auth.utils import (
     get_current_decoded_access_token,
     get_current_user,
     try_verify_password,
+    user_logout,
 )
 from core.api_v1.error_schemas import (
     InternalServerError,
@@ -243,40 +244,13 @@ async def logout_handler(
     redis_refresh_db: Annotated[Redis, Depends(get_refresh_redis)],
     decoded_token: Annotated[DecodedToken, Depends(get_current_decoded_access_token)],
 ) -> Response:
-    try:
-        async with RedisCRUD(redis_refresh_db) as redis_refresh:
-            await redis_refresh.delete(
-                key=form_redis_user_id(user_id=user.id, city_id=user.city_id)
-            )
-    except Exception:
-        raise internal_server_error
-
-    response.delete_cookie(REFRESH_TOKEN_KEY)
-    access_ttl: int = int(
-        (
-            decoded_token.expiration_date - dt.datetime.now(dt.timezone.utc)
-        ).total_seconds()
+    return await user_logout(
+        user=user,
+        response=response,
+        redis_blacklist_db=redis_blacklist_db,
+        redis_refresh_db=redis_refresh_db,
+        decoded_token=decoded_token,
     )
-    jwt_index: UUID | None = decoded_token.decoded_payload.get(JWT_ID_KEY)
-
-    if not jwt_index or access_ttl < 0:
-        raise invalid_token_payload
-
-    default_blacklist_value: str = "blacklist"
-    try:
-        async with RedisCRUD(redis_blacklist_db) as redis_blacklist:
-            ## We do not need to store any value for the jwt index key
-            ## because the /login/ endpoint will check only if jwt index in the blacklist.
-            await redis_blacklist.create(
-                key=str(jwt_index),
-                value=default_blacklist_value,
-                ttl_seconds=access_ttl,
-            )
-    except Exception:
-        raise internal_server_error
-
-    response.status_code = status.HTTP_204_NO_CONTENT
-    return response
 
 
 @auth_router.patch(
@@ -293,7 +267,11 @@ async def logout_handler(
     },
 )
 async def change_password_handler(
+    response: Response,
     user: Annotated[User, Depends(get_current_user)],
+    redis_blacklist_db: Annotated[Redis, Depends(get_tokens_blacklist_redis)],
+    redis_refresh_db: Annotated[Redis, Depends(get_refresh_redis)],
+    decoded_token: Annotated[DecodedToken, Depends(get_current_decoded_access_token)],
     password_data: Annotated[ChangePasswordModel, Body(title="User's password data.")],
 ) -> Response:
     async with CRUD() as session:
@@ -329,4 +307,11 @@ async def change_password_handler(
             await session.rollback()
             raise internal_server_error
 
+        await user_logout(
+            user=user,
+            response=response,
+            redis_blacklist_db=redis_blacklist_db,
+            redis_refresh_db=redis_refresh_db,
+            decoded_token=decoded_token,
+        )
         return Response(status_code=status.HTTP_204_NO_CONTENT)
