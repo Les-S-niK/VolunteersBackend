@@ -1,4 +1,5 @@
 import datetime as dt
+from decimal import Decimal
 from typing import Annotated
 
 from pydantic import BaseModel, Field
@@ -41,6 +42,14 @@ class InputBodyEventModel(BaseModel):
 class EventModel(InputBodyEventModel):
     name: Annotated[
         str, Field(default=..., title="Event name.", examples=["Example event."])
+    ]
+    points: Annotated[
+        Decimal,
+        Field(
+            default=...,
+            description="Reward in points for participation.",
+            examples=[100],
+        ),
     ]
     datetime: Annotated[
         dt.datetime,
