@@ -13,3 +13,7 @@ invalid_token_payload: HTTPException = HTTPException(
 not_authorized: HTTPException = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authorized"
 )
+
+forbidden: HTTPException = HTTPException(
+    status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden"
+)

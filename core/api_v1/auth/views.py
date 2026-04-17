@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, 
 from redis.asyncio import Redis
 from sqlalchemy import Result
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.status import HTTP_204_NO_CONTENT
 
 from config import ApiSettings, TokenSettings, get_api_settings, get_token_settings
 from core.api_v1.auth.hashing import hash_password, verify_password
@@ -18,6 +19,7 @@ from core.api_v1.auth.schemas import (
     CITY_ID_KEY,
     JWT_ID_KEY,
     USER_ID_KEY,
+    ChangePasswordModel,
     DecodedToken,
     EncodedToken,
     EncodedTokensPair,
@@ -29,14 +31,15 @@ from core.api_v1.auth.utils import (
     get_current_decoded_access_token,
     get_current_user,
     try_verify_password,
+    user_logout,
 )
 from core.api_v1.error_schemas import (
     InternalServerError,
-    InvalidRefreshTokenError,
     NotAuthorized,
     TooManyRequestsError,
 )
 from core.api_v1.http_exceptions import (
+    forbidden,
     internal_server_error,
     invalid_token_payload,
     not_authorized,
@@ -50,6 +53,10 @@ auth_router: APIRouter = APIRouter(
     tags=["Authenticate"],
     responses={
         status.HTTP_429_TOO_MANY_REQUESTS: {"model": TooManyRequestsError},
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": NotAuthorized,
+            "description": "Not authorized",
+        },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": InternalServerError},
     },
 )
@@ -63,10 +70,6 @@ SECONDS_IN_DAY: int = 86400
     description="Get access token by provided refresh token in the cookies.",
     responses={
         status.HTTP_200_OK: {"model": EncodedToken},
-        status.HTTP_401_UNAUTHORIZED: {
-            "model": InvalidRefreshTokenError,
-            "detail": "Invalid refresh token.",
-        },
     },
 )
 async def refresh_handler(
@@ -157,10 +160,6 @@ async def refresh_handler(
     description="Create access and refresh tokens based on user data.",
     responses={
         status.HTTP_200_OK: {"model": EncodedToken},
-        status.HTTP_401_UNAUTHORIZED: {
-            "model": NotAuthorized,
-            "description": "Not authorized",
-        },
     },
 )
 async def login_handler(
@@ -172,7 +171,7 @@ async def login_handler(
 ) -> EncodedToken:
     """
     Get user's login data (user_id, city_id, password), validate it and generate a tokens pair. (Access and refresh tokens)
-    Set refresh token in the "refresh" httponly cookies field.
+    Set refresh token in the "refresh" http only cookies field.
 
     Returns:
         EncodedToken: encoded JWT access token.
@@ -232,9 +231,9 @@ async def login_handler(
 
 @auth_router.delete(
     path="/logout/",
+    description="Logout from the user's account.",
     responses={
         status.HTTP_204_NO_CONTENT: {"description": "User logged out successfully."},
-        status.HTTP_401_UNAUTHORIZED: {"model": NotAuthorized},
     },
     status_code=status.HTTP_204_NO_CONTENT,
 )
@@ -245,37 +244,74 @@ async def logout_handler(
     redis_refresh_db: Annotated[Redis, Depends(get_refresh_redis)],
     decoded_token: Annotated[DecodedToken, Depends(get_current_decoded_access_token)],
 ) -> Response:
-    try:
-        async with RedisCRUD(redis_refresh_db) as redis_refresh:
-            await redis_refresh.delete(
-                key=form_redis_user_id(user_id=user.id, city_id=user.city_id)
-            )
-    except Exception:
-        raise internal_server_error
-
-    response.delete_cookie(REFRESH_TOKEN_KEY)
-    access_ttl: int = int(
-        (
-            decoded_token.expiration_date - dt.datetime.now(dt.timezone.utc)
-        ).total_seconds()
+    return await user_logout(
+        user=user,
+        response=response,
+        redis_blacklist_db=redis_blacklist_db,
+        redis_refresh_db=redis_refresh_db,
+        decoded_token=decoded_token,
     )
-    jwt_index: UUID | None = decoded_token.decoded_payload.get(JWT_ID_KEY)
 
-    if not jwt_index or access_ttl < 0:
-        raise invalid_token_payload
 
-    default_blacklist_value: str = "blacklist"
-    try:
-        async with RedisCRUD(redis_blacklist_db) as redis_blacklist:
-            ## We do not need to store any value for the jwt index key
-            ## because the /login/ endpoint will check only if jwt index in the blackilist.
-            await redis_blacklist.create(
-                key=str(jwt_index),
-                value=default_blacklist_value,
-                ttl_seconds=access_ttl,
+@auth_router.patch(
+    path="/change_password/",
+    description="Change user's password to a new one.",
+    status_code=HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "Password has changed successfully."
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "User can not access this resource."
+        },
+    },
+)
+async def change_password_handler(
+    response: Response,
+    user: Annotated[User, Depends(get_current_user)],
+    redis_blacklist_db: Annotated[Redis, Depends(get_tokens_blacklist_redis)],
+    redis_refresh_db: Annotated[Redis, Depends(get_refresh_redis)],
+    decoded_token: Annotated[DecodedToken, Depends(get_current_decoded_access_token)],
+    password_data: Annotated[ChangePasswordModel, Body(title="User's password data.")],
+) -> Response:
+    async with CRUD() as session:
+        try:
+            user_result: Result = (
+                await CRUD.get(User, session=session)
+                .where(User.id == user.id)
+                .with_for_update()
+                .execute()
             )
-    except Exception:
-        raise internal_server_error
+            user_from_db: User | None = user_result.scalar_one_or_none()
+        except Exception:
+            await session.rollback()
+            raise internal_server_error
 
-    response.status_code = status.HTTP_204_NO_CONTENT
-    return response
+        if not user_from_db or not verify_password(
+            password_data.old_password.get_secret_value(), user.password
+        ):
+            raise forbidden
+
+        try:
+            await (
+                CRUD.update(User, session=session)
+                .where(User.id == user_from_db.id)
+                .values(
+                    password=hash_password(
+                        password_data.new_password.get_secret_value()
+                    )
+                )
+                .execute()
+            )
+        except Exception:
+            await session.rollback()
+            raise internal_server_error
+
+        await user_logout(
+            user=user,
+            response=response,
+            redis_blacklist_db=redis_blacklist_db,
+            redis_refresh_db=redis_refresh_db,
+            decoded_token=decoded_token,
+        )
+        return Response(status_code=status.HTTP_204_NO_CONTENT)

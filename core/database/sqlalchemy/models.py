@@ -39,7 +39,7 @@ class User(Base):
     birth: Mapped[dt.date | None] = mapped_column(Date, default=None)
     passport: Mapped[str | None] = mapped_column(default=None)
     phone_number: Mapped[str | None] = mapped_column(default=None)
-    points: Mapped[int] = mapped_column(default="0", server_default="0")
+    points: Mapped[Decimal] = mapped_column(DECIMAL, default="0", server_default="0")
     password: Mapped[str]
     telegram_id: Mapped[int | None] = mapped_column(BigInteger, default=None)
     city_id: Mapped[int] = mapped_column(SmallInteger)
@@ -49,6 +49,7 @@ class Event(Base):
     __tablename__ = "events"
 
     name: Mapped[str]
+    points: Mapped[Decimal] = mapped_column(DECIMAL)
     datetime: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
 
 
