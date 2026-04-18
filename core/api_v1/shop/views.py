@@ -4,6 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from sqlalchemy import Result
 from sqlalchemy.exc import SQLAlchemyError
 
+from config import StaticImagesSettings, get_static_settings
 from core.api_v1.auth.utils import get_current_user
 from core.api_v1.error_schemas import (
     InternalServerError,
@@ -127,11 +128,15 @@ async def new_purchase_handler(
 )
 async def all_items_handler(
     _: Annotated[User, Depends(get_current_user)],
+    static_settings: Annotated[StaticImagesSettings, Depends(get_static_settings)],
 ) -> list[ItemModel]:
     try:
         result: Result = await CRUD.get(Item).where().order_by(Item.id).execute()
     except SQLAlchemyError:
         raise internal_server_error
     database_items: list[ItemModel] = list(result.scalars().all())
+    for item in database_items:
+        old_image_url: str = item.image_url
+        item.image_url = f"{static_settings.API_URL}/{old_image_url}"
 
     return database_items
