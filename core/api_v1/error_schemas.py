@@ -38,6 +38,10 @@ class InternalServerError(ErrorResponse):
     error: str = "Internal Server Error"
 
 
+class ConflictError(ErrorResponse):
+    error: str = "Conflict"
+
+
 class UnprocessableContentError(ErrorResponse):
     error: str = "Unprocessable content"
 

@@ -3,11 +3,7 @@ from conftest import TEST_USER_POINTS, api_get, assert_schema
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import User
 
-USER_PROFILE_SCHEMA = {
-    "id": int,
-    "city_id": int,
-    "points": int
-}
+USER_PROFILE_SCHEMA = {"id": int, "city_id": int, "points": str}
 
 
 def test_get_user_profile_success(session, auth_headers):
@@ -16,6 +12,10 @@ def test_get_user_profile_success(session, auth_headers):
 
     body = response.json()
     assert_schema(body, USER_PROFILE_SCHEMA)
+    from decimal import Decimal
+
+    points_decimal = Decimal(body["points"])
+    assert points_decimal >= 0
 
 
 def test_get_user_profile_unauthorized(session):
