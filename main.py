@@ -24,6 +24,16 @@ api_settings: ApiSettings = get_api_settings()
 setup_logger()
 
 app: FastAPI = FastAPI(debug=api_settings.DEBUG, version=APP_VERSION)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_cors_origins(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.add_middleware(SecurityMiddleware, config=get_guard_setings())
+
 app.include_router(auth_router)
 app.include_router(profile_router)
 app.include_router(links_router)
@@ -36,15 +46,6 @@ app.mount(
     app=StaticFiles(directory=static_images_config.DIR_PATH),
     name="images",
 )
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=get_cors_origins(),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-app.add_middleware(SecurityMiddleware, config=get_guard_setings())
 
 if __name__ == "__main__":
     run(
