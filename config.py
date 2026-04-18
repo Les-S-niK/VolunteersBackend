@@ -154,7 +154,12 @@ def get_db_settings() -> DBSettings:
 
 @lru_cache
 def get_cors_origins() -> list[str]:
-    return ["http://127.0.0.1:8081", "http://localhost:8081"]
+    return [
+        "http://127.0.0.1:80",
+        "http://localhost:80",
+        "http://127.0.0.1",
+        "http://localhost",
+    ]
 
 
 @lru_cache
