@@ -45,6 +45,7 @@ async def fill_fake_events():
         for _ in range(100):
             event: Event = Event(
                 name=hex(randint(1024, 65536))[2:],
+                points=randint(1, 100),
                 datetime=fake.date_time(),
             )
             await CRUD.add(event, session=session).execute()

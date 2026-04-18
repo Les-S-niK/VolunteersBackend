@@ -4,16 +4,18 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from sqlalchemy import Result
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.status import HTTP_409_CONFLICT
 
 from core.api_v1.auth import get_current_user
 from core.api_v1.error_schemas import (
+    ConflictError,
     Forbidden,
     InternalServerError,
     NotAuthorized,
     NotFoundError,
     TooManyRequestsError,
 )
-from core.api_v1.http_exceptions import internal_server_error
+from core.api_v1.http_exceptions import internal_server_error, not_authorized
 from core.api_v1.profile.schemas import (
     EventModel,
     Events,
@@ -79,7 +81,12 @@ async def user_events_get_handler(
 
     return Events(
         events=[
-            EventModel(id=event.id, datetime=event.datetime, name=event.name)
+            EventModel(
+                id=event.id,
+                points=event.points,
+                datetime=event.datetime,
+                name=event.name,
+            )
             for event in events
         ]
     )
@@ -98,6 +105,10 @@ async def user_events_get_handler(
             "model": NotFoundError,
             "description": "Can not find event with the provided ID.",
         },
+        status.HTTP_409_CONFLICT: {
+            "model": ConflictError,
+            "description": "User already registered for this event.",
+        },
     },
     status_code=status.HTTP_204_NO_CONTENT,
 )
@@ -112,40 +123,70 @@ async def user_events_register_handler(
     Returns:
         Response: status 204 NoContent when the user successfully registered for the event.
     """
+    now_time: dt.datetime = dt.datetime.now(dt.timezone.utc)
+    max_register_time: dt.timedelta = dt.timedelta(minutes=15)
     async with CRUD() as session:
-        try:
-            event_query_result: Result = (
-                await CRUD.get(Event, session=session)
-                .where(Event.id == event.id)
-                .with_for_update()
-                .execute()
-            )
-            event_model: Event | None = event_query_result.scalar_one_or_none()
-        except SQLAlchemyError:
-            await session.rollback()
-            raise internal_server_error
+        async with session.begin():
+            try:
+                event_query_result: Result = (
+                    await CRUD.get(Event, session=session)
+                    .where(Event.id == event.id)
+                    .with_for_update()
+                    .execute()
+                )
+                event_model: Event | None = event_query_result.scalar_one_or_none()
+                if not event_model:
+                    await session.rollback()
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Can not find event with provided ID.",
+                    )
 
-        if not event_model:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Can not find event with provided ID.",
-            )
+                event_start: dt.datetime = event_model.datetime
+                timediff: dt.timedelta = now_time - event_start
 
-        now_time: dt.datetime = dt.datetime.now(dt.timezone.utc)
-        max_register_time: dt.timedelta = dt.timedelta(minutes=15)
-        event_start: dt.datetime = event_model.datetime
-        timediff: dt.timedelta = now_time - event_start
+                if timediff.total_seconds() < 0 or timediff > max_register_time:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="User can not register for the event after 15 minutes from the moment it starts.",
+                    )
 
-        if timediff.total_seconds() < 0 or timediff > max_register_time:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User can not register for the event after 15 minutes from the moment it starts.",
-            )
-        new_user_event: UserEvent = UserEvent(event_id=event_model.id, user_id=user.id)
-        try:
-            await CRUD.add(new_user_event, session=session).execute()
-        except SQLAlchemyError:
-            await session.rollback()
-            raise internal_server_error
+                user_result: Result = (
+                    await CRUD.get(User, session=session)
+                    .where(User.id == user.id)
+                    .with_for_update()
+                    .execute()
+                )
+                user_from_db: User | None = user_result.scalar_one_or_none()
+                if not user_from_db:
+                    raise not_authorized
+
+                existing_registration: Result = await (
+                    CRUD.get(UserEvent, session=session)
+                    .where(
+                        UserEvent.event_id == event_model.id,
+                        UserEvent.user_id == user.id,
+                    )
+                    .with_for_update()
+                    .execute()
+                )
+                if existing_registration.scalar_one_or_none():
+                    raise HTTPException(
+                        status_code=HTTP_409_CONFLICT, detail="Already registered."
+                    )
+
+                await (
+                    CRUD.update(User, session=session)
+                    .where(User.id == user_from_db.id)
+                    .values(points=user_from_db.points + event_model.points)
+                    .execute()
+                )
+                new_user_event: UserEvent = UserEvent(
+                    event_id=event_model.id, user_id=user_from_db.id
+                )
+                await CRUD.add(new_user_event, session=session).execute()
+            except SQLAlchemyError:
+                await session.rollback()
+                raise internal_server_error
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -20,7 +20,6 @@ from core.api_v1.http_exceptions import (
     not_authorized,
 )
 from core.database.redis import RedisCRUD, get_tokens_blacklist_redis
-from core.database.redis.engine import get_refresh_redis
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import User
 
