@@ -1,4 +1,5 @@
 import datetime as dt
+from decimal import Decimal
 
 import pytest
 from conftest import (
@@ -15,9 +16,7 @@ from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import Event, UserEvent
 
 
-USER_EVENTS_SCHEMA = {
-    "events": list
-}
+USER_EVENTS_SCHEMA = {"events": list}
 
 
 def test_get_user_events_success(session, auth_headers):
@@ -46,16 +45,22 @@ async def test_get_user_events_returns_only_current_user_events(
     own_event = await create_event(
         name=own_event_name,
         datetime=dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=1),
+        points=10.5,
     )
     foreign_event = await create_event(
         name=foreign_event_name,
         datetime=dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=2),
+        points=20.0,
     )
     await CRUD.add(UserEvent(user_id=current_user_id, event_id=own_event.id)).execute()
-    await CRUD.add(UserEvent(user_id=another_user.id, event_id=foreign_event.id)).execute()
+    await CRUD.add(
+        UserEvent(user_id=another_user.id, event_id=foreign_event.id)
+    ).execute()
 
     try:
-        response = api_get(session, "/api/v1/profiles/user_events/", headers=auth_headers)
+        response = api_get(
+            session, "/api/v1/profiles/user_events/", headers=auth_headers
+        )
 
         assert response.status_code == 200
         body = response.json()
@@ -74,6 +79,8 @@ async def test_get_user_events_returns_only_current_user_events(
         assert own_event_payload is not None
         assert own_event_payload["name"] == own_event_name
         assert "datetime" in own_event_payload
+        assert "points" in own_event_payload
+        assert Decimal(own_event_payload["points"]) == Decimal(10.5)
         assert foreign_event_payload is None
     finally:
         await (
@@ -94,7 +101,9 @@ def test_post_user_event_register_unauthorized(session):
 
 
 def test_post_user_event_register_validation_error_missing_id(session, auth_headers):
-    response = api_post(session, "/api/v1/profiles/user_events/", json={}, headers=auth_headers)
+    response = api_post(
+        session, "/api/v1/profiles/user_events/", json={}, headers=auth_headers
+    )
     assert_validation_error(response)
 
 
@@ -117,6 +126,7 @@ async def test_post_user_event_register_success_creates_user_event(
     event = await create_event(
         name="pytest-user-events-register-success",
         datetime=dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=5),
+        points=15.75,
     )
 
     try:
@@ -155,6 +165,7 @@ async def test_post_user_event_register_forbidden_before_start(
     event = await create_event(
         name="pytest-user-events-register-future",
         datetime=dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=5),
+        points=5.0,
     )
 
     try:
@@ -181,6 +192,7 @@ async def test_post_user_event_register_forbidden_after_15_minutes(
     event = await create_event(
         name="pytest-user-events-register-late",
         datetime=dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=16),
+        points=8.0,
     )
 
     try:

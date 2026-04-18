@@ -8,6 +8,7 @@ from starlette.status import HTTP_409_CONFLICT
 
 from core.api_v1.auth import get_current_user
 from core.api_v1.error_schemas import (
+    ConflictError,
     Forbidden,
     InternalServerError,
     NotAuthorized,
@@ -103,6 +104,10 @@ async def user_events_get_handler(
         status.HTTP_404_NOT_FOUND: {
             "model": NotFoundError,
             "description": "Can not find event with the provided ID.",
+        },
+        status.HTTP_409_CONFLICT: {
+            "model": ConflictError,
+            "description": "User already registered for this event.",
         },
     },
     status_code=status.HTTP_204_NO_CONTENT,

@@ -25,7 +25,7 @@ class UserProfile(BaseModel):
         ),
     ]
     points: Annotated[
-        int,
+        Decimal,
         Field(
             default=...,
             title="User's points.",
