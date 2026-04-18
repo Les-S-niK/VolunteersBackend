@@ -54,10 +54,10 @@ class ApiSettings(BaseSettings):
 class StaticImagesSettings(BaseSettings):
     DIR_PATH: Annotated[
         str, Field(default=..., title="Path to a directory with static images files.")
-    ] = ""
+    ] = "/home/lessnik/programming/python/fastapi/VolunteersBackend/core/api_v1/images/"
     API_URI: Annotated[
         str, Field(default="/images", title="URL path to the static storage.")
-    ] = ""
+    ] = "/shop/images"
     API_URL: Annotated[
         str,
         Field(
