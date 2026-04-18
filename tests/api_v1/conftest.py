@@ -27,14 +27,14 @@ settings = get_api_settings()
 BASE_URL = f"http://{settings.HOST}:{settings.PORT}"
 TEST_DELAY = 1
 TEST_USER_CITY_ID = 1
-TEST_USER_POINTS = 1000
+TEST_USER_POINTS: str = "1000"
 TIMEOUT = 5
 
 
 class TestSession(requests.Session):
     def request(self, method, url, *args, **kwargs):
-        if 'timeout' not in kwargs:
-            kwargs['timeout'] = TIMEOUT
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = TIMEOUT
         return super().request(method, url, *args, **kwargs)
 
 
@@ -121,10 +121,7 @@ async def valid_credentials():
     await CRUD.delete(UserItem).where(UserItem.user_id == user_id).execute()
     await CRUD.delete(Report).where(Report.user_id == user_id).execute()
     await (
-        CRUD.update(Link)
-        .where(Link.user_id == user_id)
-        .values(user_id=None)
-        .execute()
+        CRUD.update(Link).where(Link.user_id == user_id).values(user_id=None).execute()
     )
     await CRUD.delete(User).where(User.id == user_id).execute()
 
@@ -139,8 +136,9 @@ def auth_headers(session, valid_credentials) -> dict[str, str]:
 def assert_schema(data: dict, schema: dict) -> None:
     for key, expected_type in schema.items():
         assert key in data, f"Missing key: {key}"
-        assert isinstance(data[key], expected_type), \
+        assert isinstance(data[key], expected_type), (
             f"Field '{key}' expected {expected_type.__name__}, got {type(data[key]).__name__}"
+        )
 
 
 def assert_error_detail(response, expected_detail: str) -> None:
@@ -169,9 +167,7 @@ def current_user_id(valid_credentials) -> int:
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def another_user(current_user_id) -> User | None:
     users_query_result: Result = (
-        await CRUD.get(User)
-        .where(User.id != current_user_id)
-        .execute()
+        await CRUD.get(User).where(User.id != current_user_id).execute()
     )
     return users_query_result.scalars().first()
 
@@ -199,8 +195,8 @@ def create_item():
 
 @pytest.fixture
 def create_event():
-    async def factory(*, name: str, datetime) -> Event:
-        event = Event(name=name, datetime=datetime)
+    async def factory(*, name: str, points: Decimal, datetime) -> Event:
+        event = Event(name=name, points=points, datetime=datetime)
         await CRUD.add(event).execute()
         return event
 

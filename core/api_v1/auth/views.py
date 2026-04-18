@@ -1,6 +1,5 @@
-import datetime as dt
 from typing import Annotated
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from redis.asyncio import Redis
@@ -41,7 +40,6 @@ from core.api_v1.error_schemas import (
 from core.api_v1.http_exceptions import (
     forbidden,
     internal_server_error,
-    invalid_token_payload,
     not_authorized,
 )
 from core.database.redis import RedisCRUD, get_refresh_redis, get_tokens_blacklist_redis
