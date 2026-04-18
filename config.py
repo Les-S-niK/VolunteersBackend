@@ -3,12 +3,11 @@ from functools import lru_cache
 from os import path
 from typing import Annotated
 
+from guard import SecurityConfig
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from guard import SecurityConfig
-
-APP_VERSION: str = "0.1.9"
+APP_VERSION: str = "0.2.0"
 
 
 class ApiSettings(BaseSettings):
@@ -50,6 +49,22 @@ class ApiSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_prefix="API_", extra="ignore"
     )
+
+
+class StaticImagesSettings(BaseSettings):
+    DIR_PATH: Annotated[
+        str, Field(default=..., title="Path to a directory with static images files.")
+    ] = "/home/lessnik/programming/python/fastapi/VolunteersBackend/core/api_v1/images/"
+    API_URI: Annotated[
+        str, Field(default="/images", title="URL path to the static storage.")
+    ] = "/shop/images"
+    API_URL: Annotated[
+        str,
+        Field(
+            default=f"http://{ApiSettings().HOST}:{ApiSettings().PORT}{API_URI}",
+            title="URL path to the static storage.",
+        ),
+    ]
 
 
 class TokenSettings(BaseSettings):
@@ -140,6 +155,11 @@ def get_db_settings() -> DBSettings:
 @lru_cache
 def get_cors_origins() -> list[str]:
     return ["http://127.0.0.1:8081", "http://localhost:8081"]
+
+
+@lru_cache
+def get_static_settings() -> StaticImagesSettings:
+    return StaticImagesSettings()
 
 
 @lru_cache

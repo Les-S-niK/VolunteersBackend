@@ -1,14 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from guard import SecurityMiddleware
 from uvicorn import run
 
 from config import (
     APP_VERSION,
     ApiSettings,
+    StaticImagesSettings,
     get_api_settings,
     get_cors_origins,
     get_guard_setings,
+    get_static_settings,
 )
 from core.api_v1.auth import auth_router
 from core.api_v1.links import links_router
@@ -26,6 +29,13 @@ app.include_router(profile_router)
 app.include_router(links_router)
 app.include_router(reports_router)
 app.include_router(shop_router)
+
+static_images_config: StaticImagesSettings = get_static_settings()
+app.mount(
+    path=static_images_config.API_URI,
+    app=StaticFiles(directory=static_images_config.DIR_PATH),
+    name="images",
+)
 
 app.add_middleware(
     CORSMiddleware,
