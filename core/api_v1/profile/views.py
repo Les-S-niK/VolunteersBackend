@@ -25,6 +25,8 @@ from core.api_v1.profile.schemas import (
 from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import Event, User, UserEvent
 
+EVENT_AVAILABLE_TIME: dt.timedelta = dt.timedelta(minutes=15)
+
 profile_router: APIRouter = APIRouter(
     prefix="/api/v1/profiles",
     tags=["Profile"],
@@ -125,7 +127,6 @@ async def user_events_register_handler(
         Response: status 204 NoContent when the user successfully registered for the event.
     """
     now_time: dt.datetime = dt.datetime.now(dt.timezone.utc)
-    max_register_time: dt.timedelta = dt.timedelta(minutes=15)
     async with CRUD() as session:
         async with session.begin():
             try:
@@ -146,10 +147,10 @@ async def user_events_register_handler(
                 event_start: dt.datetime = event_model.datetime
                 timediff: dt.timedelta = now_time - event_start
 
-                if timediff.total_seconds() < 0 or timediff > max_register_time:
+                if timediff.total_seconds() < 0 or timediff > EVENT_AVAILABLE_TIME:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail="User can not register for the event after 15 minutes from the moment it starts.",
+                        detail=f"User can not register for the event after {EVENT_AVAILABLE_TIME} minutes from the moment it starts.",
                     )
 
                 user_result: Result = (
@@ -191,3 +192,38 @@ async def user_events_register_handler(
                 raise internal_server_error
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@profile_router.get(
+    path="/available_events/",
+    description="Get all the events in which the user can participate right now.",
+    responses={
+        status.HTTP_200_OK: {"model": Events},
+    },
+)
+async def available_events_handler(
+    _: Annotated[User, Depends(get_current_user)],
+) -> Events:
+    now_time: dt.datetime = dt.datetime.now(dt.timezone.utc)
+    try:
+        events_query_result: Result = (
+            await CRUD.get(Event)
+            .where(Event.datetime.between(now_time - EVENT_AVAILABLE_TIME, now_time))
+            .execute()
+        )
+    except SQLAlchemyError:
+        raise internal_server_error
+    events: list[Event] = list(events_query_result.scalars().all())
+
+    return Events(
+        events=[
+            EventModel(
+                id=event.id,
+                name=event.name,
+                description=event.description,
+                points=event.points,
+                datetime=event.datetime,
+            )
+            for event in events
+        ]
+    )
