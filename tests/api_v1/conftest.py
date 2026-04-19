@@ -195,8 +195,12 @@ def create_item():
 
 @pytest.fixture
 def create_event():
-    async def factory(*, name: str, points: Decimal, datetime) -> Event:
-        event = Event(name=name, points=points, datetime=datetime)
+    async def factory(
+        *, name: str, description: str, points: Decimal, datetime
+    ) -> Event:
+        event = Event(
+            name=name, description=description, points=points, datetime=datetime
+        )
         await CRUD.add(event).execute()
         return event
 

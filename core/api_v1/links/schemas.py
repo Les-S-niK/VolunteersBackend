@@ -25,15 +25,15 @@ class VerifiedLinkResult(LinkToVerifyModel):
         ),
     ]
     violation_type: Annotated[
-        str,
+        str | None,
         Field(
-            default=...,
+            default=None,
             description="Link violation type.",
             examples=["Type1", "Danger"],
         ),
     ]
     content_type: Annotated[
-        list[str],
+        list[str] | None,
         Field(
             default=None, description="Link content types", examples=[["Text", "Image"]]
         ),

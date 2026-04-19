@@ -44,11 +44,13 @@ async def test_get_user_events_returns_only_current_user_events(
 
     own_event = await create_event(
         name=own_event_name,
+        description="description",
         datetime=dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=1),
         points=10.5,
     )
     foreign_event = await create_event(
         name=foreign_event_name,
+        description="description",
         datetime=dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=2),
         points=20.0,
     )
@@ -125,6 +127,7 @@ async def test_post_user_event_register_success_creates_user_event(
 ):
     event = await create_event(
         name="pytest-user-events-register-success",
+        description="description",
         datetime=dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=5),
         points=15.75,
     )
@@ -164,6 +167,7 @@ async def test_post_user_event_register_forbidden_before_start(
 ):
     event = await create_event(
         name="pytest-user-events-register-future",
+        description="description",
         datetime=dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=5),
         points=5.0,
     )
@@ -191,6 +195,7 @@ async def test_post_user_event_register_forbidden_after_15_minutes(
 ):
     event = await create_event(
         name="pytest-user-events-register-late",
+        description="pytest-user-events-register-late-description",
         datetime=dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=16),
         points=8.0,
     )
