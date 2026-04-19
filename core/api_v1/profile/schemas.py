@@ -30,7 +30,7 @@ class UserProfile(BaseModel):
             default=...,
             title="User's points.",
             description="User's activity points.",
-            examples=[1000, 6452],
+            examples=["1000", "6452.123"],
         ),
     ]
 
@@ -54,7 +54,7 @@ class EventModel(InputBodyEventModel):
         Field(
             default=...,
             description="Reward in points for participation.",
-            examples=[100],
+            examples=["100.12"],
         ),
     ]
     datetime: Annotated[
@@ -69,6 +69,16 @@ class Events(BaseModel):
         Field(
             default=[],
             title="Events List",
-            examples=[[{"id": 123, "name": "Example event.", "date": "2026-02-25"}]],
+            examples=[
+                [
+                    {
+                        "id": 123,
+                        "name": "Example event.",
+                        "description": "Example description.",
+                        "points": "10.2",
+                        "date": "2026-02-25",
+                    }
+                ]
+            ],
         ),
     ]

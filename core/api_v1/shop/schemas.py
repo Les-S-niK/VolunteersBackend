@@ -17,7 +17,7 @@ class ItemModel(BaseModel):
     id: int
     image_url: Annotated[str, Field(default=..., title="Image URL")]
     price: Annotated[
-        Decimal, Field(default=..., title="Item price", examples=[1000, 80.2], ge=0)
+        Decimal, Field(default=..., title="Item price", examples=["1000", "80.2"], ge=0)
     ]
     amount: Annotated[
         int, Field(default=..., title="Item amount", examples=[1, 10], ge=0)
