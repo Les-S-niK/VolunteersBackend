@@ -43,6 +43,12 @@ class EventModel(InputBodyEventModel):
     name: Annotated[
         str, Field(default=..., title="Event name.", examples=["Example event."])
     ]
+    description: Annotated[
+        str,
+        Field(
+            default=..., title="Event description.", examples=["Example description."]
+        ),
+    ]
     points: Annotated[
         Decimal,
         Field(
