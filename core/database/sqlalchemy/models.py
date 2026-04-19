@@ -49,6 +49,7 @@ class Event(Base):
     __tablename__ = "events"
 
     name: Mapped[str]
+    description: Mapped[str]
     points: Mapped[Decimal] = mapped_column(DECIMAL)
     datetime: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
 
