@@ -83,9 +83,10 @@ async def user_events_get_handler(
         events=[
             EventModel(
                 id=event.id,
+                name=event.name,
+                description=event.description,
                 points=event.points,
                 datetime=event.datetime,
-                name=event.name,
             )
             for event in events
         ]
