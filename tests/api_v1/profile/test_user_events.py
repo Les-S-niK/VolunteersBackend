@@ -16,6 +16,7 @@ from core.database.sqlalchemy.db import CRUD
 from core.database.sqlalchemy.models import Event, UserEvent
 
 
+EVENT_AVAILABLE_TIME: dt.timedelta = dt.timedelta(minutes=15)
 USER_EVENTS_SCHEMA = {"events": list}
 
 
@@ -183,7 +184,7 @@ async def test_post_user_event_register_forbidden_before_start(
         assert response.status_code == 403
         assert_error_detail(
             response,
-            "User can not register for the event after 15 minutes from the moment it starts.",
+            f"User can not register for the event after {EVENT_AVAILABLE_TIME} minutes from the moment it starts.",
         )
     finally:
         await CRUD.delete(Event).where(Event.id == event.id).execute()
@@ -211,7 +212,7 @@ async def test_post_user_event_register_forbidden_after_15_minutes(
         assert response.status_code == 403
         assert_error_detail(
             response,
-            "User can not register for the event after 15 minutes from the moment it starts.",
+            f"User can not register for the event after {EVENT_AVAILABLE_TIME} minutes from the moment it starts.",
         )
     finally:
         await CRUD.delete(Event).where(Event.id == event.id).execute()
