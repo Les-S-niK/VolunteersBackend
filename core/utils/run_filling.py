@@ -128,6 +128,7 @@ async def transfer_excel_to_db(filename: str = "db.xlsx") -> None:
                         event = Event(
                             name=event_name,
                             description="Нет",
+                            points=0,
                             datetime=DEFAULT_EVENT_DT,
                         )
                         await CRUD.add(event, session=session).execute()
