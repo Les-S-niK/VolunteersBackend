@@ -125,7 +125,11 @@ async def transfer_excel_to_db(filename: str = "db.xlsx") -> None:
                     )
                     event = ev.scalar_one_or_none()
                     if not event:
-                        event = Event(name=event_name, datetime=DEFAULT_EVENT_DT)
+                        event = Event(
+                            name=event_name,
+                            description="Нет",
+                            datetime=DEFAULT_EVENT_DT,
+                        )
                         await CRUD.add(event, session=session).execute()
                     ue = await session.execute(
                         select(UserEvent).where(
