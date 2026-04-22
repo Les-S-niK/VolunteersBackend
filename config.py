@@ -159,6 +159,19 @@ def get_cors_origins() -> list[str]:
         "http://localhost:80",
         "http://127.0.0.1",
         "http://localhost",
+        "http://0.0.0.0",
+        "http://0.0.0.0:80",
+        "https://127.0.0.1:80",
+        "https://localhost:80",
+        "https://127.0.0.1",
+        "https://localhost",
+        "https://0.0.0.0",
+        "https://0.0.0.0:80",
+        ## Local server settings: (192.168.2.58) ##
+        "http://192.168.2.58:80",
+        "https://192.168.2.58:80",
+        "http://192.168.2.58",
+        "https://192.168.2.58",
     ]
 
 
