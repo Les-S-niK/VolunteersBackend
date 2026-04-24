@@ -131,7 +131,9 @@ async def all_items_handler(
     static_settings: Annotated[StaticImagesSettings, Depends(get_static_settings)],
 ) -> list[ItemModel]:
     try:
-        result: Result = await CRUD.get(Item).where().order_by(Item.id).execute()
+        result: Result = (
+            await CRUD.get(Item).where(Item.amount > 0).order_by(Item.id).execute()
+        )
     except SQLAlchemyError:
         raise internal_server_error
     database_items: list[ItemModel] = list(result.scalars().all())
