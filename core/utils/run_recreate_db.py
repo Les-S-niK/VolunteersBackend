@@ -1,10 +1,11 @@
 import asyncio
 
-from core.database.sqlalchemy.generate_fake_data import recreate_db
+from core.database.sqlalchemy.generate_fake_data import init_db, drop_db
 
 
 async def main() -> None:
-    await recreate_db()
+    await init_db()
+    await drop_db()
 
 
 if __name__ == "__main__":
