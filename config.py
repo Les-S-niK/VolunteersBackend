@@ -54,7 +54,7 @@ class ApiSettings(BaseSettings):
 class StaticImagesSettings(BaseSettings):
     DIR_PATH: Annotated[
         str, Field(default=..., title="Path to a directory with static images files.")
-    ] = "/home/lessnik/programming/python/fastapi/VolunteersBackend/core/api_v1/images/"
+    ] = "/home/source/Projects/Volunteers/images/"
     API_URI: Annotated[
         str, Field(default="/images", title="URL path to the static storage.")
     ] = "/shop/images"
@@ -155,23 +155,24 @@ def get_db_settings() -> DBSettings:
 @lru_cache
 def get_cors_origins() -> list[str]:
     return [
-        "http://127.0.0.1:80",
-        "http://localhost:80",
-        "http://127.0.0.1",
-        "http://localhost",
-        "http://0.0.0.0",
-        "http://0.0.0.0:80",
-        "https://127.0.0.1:80",
-        "https://localhost:80",
-        "https://127.0.0.1",
-        "https://localhost",
-        "https://0.0.0.0",
-        "https://0.0.0.0:80",
-        ## Local server settings: (192.168.2.58) ##
+        ## Local server CORS origins. ##
         "http://192.168.2.58:80",
         "https://192.168.2.58:80",
         "http://192.168.2.58",
         "https://192.168.2.58",
+        ## Other CORS origins. ( Local ) ##
+        "http://127.0.0.1:80",
+        "http://localhost:80",
+        "http://127.0.0.1",
+        "http://localhost",
+        "https://127.0.0.1:80",
+        "https://localhost:80",
+        "https://127.0.0.1",
+        "https://localhost",
+        "http://0.0.0.0:80",
+        "https://0.0.0.0:80",
+        "http://0.0.0.0",
+        "https://0.0.0.0",
     ]
 
 
@@ -219,3 +220,4 @@ def get_guard_setings() -> SecurityConfig:
         #     "permissions_policy": "geolocation=(), microphone=(), camera=()",
         # },
     )
+
