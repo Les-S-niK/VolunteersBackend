@@ -5,6 +5,7 @@ from enum import Enum
 from sqlalchemy import (
     DECIMAL,
     TEXT,
+    VARCHAR,
     BigInteger,
     Boolean,
     Date,
@@ -104,6 +105,17 @@ class Report(Base):
     user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.id"), doc="The user who create a report."
     )
+
+
+class Complaint(Base):
+    __tablename__ = "complaints"
+
+    ## Complaint does not refer to a specific user because it can be anonymous. ##
+    ## User may not login in the API to send complaints. ##
+    type: Mapped[str] = mapped_column(String)
+    sender: Mapped[str | None] = mapped_column(String, nullable=True)
+    sender_contact: Mapped[str | None] = mapped_column(String, nullable=True)
+    content: Mapped[str] = mapped_column(String(2000))
 
 
 class Item(Base):
