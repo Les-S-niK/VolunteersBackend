@@ -116,6 +116,7 @@ class Complaint(Base):
     sender: Mapped[str | None] = mapped_column(String, nullable=True)
     sender_contact: Mapped[str | None] = mapped_column(String, nullable=True)
     content: Mapped[str] = mapped_column(String(2000))
+    status: Mapped[ReportStatuses] = mapped_column(default=ReportStatuses.unanswered)
 
 
 class Item(Base):
