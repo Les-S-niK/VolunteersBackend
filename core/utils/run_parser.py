@@ -4,7 +4,7 @@ from os import path
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from core.links_parser.search import search_queries
+from core.links_parser.search import search_queries, normalize_url
 from core.links_parser.validator import NarcoticsLinkAnalyzer
 from core.database.sqlalchemy.models import Link
 from core.database.sqlalchemy.db import CRUD
@@ -51,6 +51,7 @@ async def main():
                 print(f"Url or Priority is None: Url: {url}, Priority: {priority}")
                 continue
 
+            normalized_link = normalize_url(url)
             link: Link = Link(
                 link=url,
                 is_prohibited=None,

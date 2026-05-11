@@ -5,7 +5,6 @@ from enum import Enum
 from sqlalchemy import (
     DECIMAL,
     TEXT,
-    VARCHAR,
     BigInteger,
     Boolean,
     Date,
