@@ -4,6 +4,19 @@ from typing import Iterable
 
 from ddgs import DDGS
 
+from urllib.parse import urlparse, urlunparse
+
+
+def normalize_url(url: str) -> str:
+    if not url:
+        return ""
+    parsed = urlparse(url)
+    if (parsed.scheme == "http" and parsed.port == 80) or (
+        parsed.scheme == "https" and parsed.port == 443
+    ):
+        parsed = parsed._replace(netloc=parsed.hostname)
+    return urlunparse(parsed)
+
 
 def _search_single_query(
     query: str,
@@ -51,6 +64,7 @@ def _search_single_query(
 
             for r in page_results:
                 href = r.get("href")
+                href = normalize_url(href)
                 if href and href not in seen:
                     seen.add(href)
                     found.append(href)
@@ -116,4 +130,3 @@ def search_queries(
                 results[query] = []
 
     return results
-
