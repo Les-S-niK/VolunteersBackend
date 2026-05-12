@@ -92,7 +92,7 @@ async def main():
         for res in results:
             url_raw: str | None = res.get("normalized_url")
             priority: int | None = res.get("total_score")
-            if not url_raw or priority is None:
+            if not url_raw or priority is None or priority < 3:
                 print(f"[WARN] Пропуск: normalized_url={url_raw}, priority={priority}")
                 continue
 
