@@ -1,7 +1,6 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
-from pydantic import HttpUrl
 from sqlalchemy import Result
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -131,7 +130,7 @@ async def first_unverified_handler(
                 already_taken_link_result.scalar_one_or_none()
             )
             if already_taken_link:
-                return LinkToVerifyModel(link=HttpUrl(already_taken_link.link))
+                return LinkToVerifyModel(link=already_taken_link.link)
 
             link_query_result: Result = (
                 await CRUD.get(Link, session=session)
@@ -160,4 +159,4 @@ async def first_unverified_handler(
             await session.rollback()
             raise internal_server_error
 
-    return LinkToVerifyModel(link=HttpUrl(first_unverified_link.link))
+    return LinkToVerifyModel(link=first_unverified_link.link)
