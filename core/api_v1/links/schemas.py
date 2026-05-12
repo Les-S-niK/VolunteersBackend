@@ -1,11 +1,11 @@
 from typing import Annotated
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 
 
 class LinkToVerifyModel(BaseModel):
     link: Annotated[
-        HttpUrl,
+        str,
         Field(
             default=...,
             title="Site URL",
