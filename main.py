@@ -13,6 +13,7 @@ from config import (
     get_guard_setings,
     get_static_settings,
 )
+from core.api_v1.applicants import applicants_router
 from core.api_v1.auth import auth_router
 from core.api_v1.complaint import complaints_router
 from core.api_v1.links import links_router
@@ -41,6 +42,7 @@ app.include_router(links_router)
 app.include_router(reports_router)
 app.include_router(shop_router)
 app.include_router(complaints_router)
+app.include_router(applicants_router)
 
 static_images_config: StaticImagesSettings = get_static_settings()
 app.mount(

@@ -125,7 +125,7 @@ class Applicant:
     name: Mapped[str] = mapped_column(String)
     region: Mapped[str] = mapped_column(String)
     contact: Mapped[str] = mapped_column(String)
-    description: Mapped[str | None] = mapped_column(String, nullable=True)
+    content: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class Item(Base):

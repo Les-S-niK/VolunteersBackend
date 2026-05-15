@@ -17,7 +17,7 @@ class ApplicantModel(BaseModel):
             examples=["+7 999 111 81 81", "@applicantProfile"],
         ),
     ]
-    description: Annotated[
+    content: Annotated[
         str | None,
         Field(
             default=...,
