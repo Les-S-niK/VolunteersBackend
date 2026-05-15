@@ -25,6 +25,17 @@ def normalize_url(url: str) -> str:
     return urlunparse(parsed)
 
 
+def read_queries_line_by_line(filepath: str):
+    """
+    Генератор, построчно читающий файл и возвращающий непустые строки (запросы).
+    """
+    with open(filepath, "r", encoding="utf-8") as f:
+        for line in f:
+            query = line.strip()
+            if query:
+                yield query
+
+
 async def main():
     filename: str = "links.txt"
     print("[INFO] Запуск программы.")
@@ -51,44 +62,36 @@ async def main():
         print(f"[ERROR] Файл {filename} не найден по пути {filepath}.")
         return
 
-    with open(filepath, "r") as file:
-        test_queries = [line.strip() for line in file.readlines() if line.strip()]
-
-    if not test_queries:
-        print(f"[WARN] Файл {filename} не содержит ни одного непустого запроса.")
-        return
-
-    print(f"[INFO] Загружено {len(test_queries)} запросов из файла.")
-
-    print("[INFO] Начинается поиск ссылок через DuckDuckGo...")
-    queries_links: dict[str, list[str]] = search_queries(
-        test_queries, limit=limit, max_workers=10
-    )
-
-    total_found = sum(len(links) for links in queries_links.values())
-    print(f"[INFO] Поиск завершён. Всего найдено уникальных ссылок: {total_found}")
-
     analyzer = NarcoticsLinkAnalyzer()
+    total_queries = 0
     total_saved = 0
     total_errors = 0
 
-    for query, links in queries_links.items():
+    # Построчная обработка запросов
+    for query in read_queries_line_by_line(filepath):
+        total_queries += 1
+        print(f"\n[INFO] Обработка запроса #{total_queries}: '{query}'")
+
+        # Поиск ссылок для текущего запроса
+        queries_links = search_queries([query], limit=limit, max_workers=1)
+        links = queries_links.get(query, [])
+
         if not links:
             print(
                 f"[WARN] Для запроса '{query}' не найдено ни одной ссылки. Пропускаем."
             )
             continue
 
-        print(f"[INFO] Обработка запроса '{query}': получено {len(links)} ссылок.")
+        print(f"[INFO] Найдено ссылок: {len(links)}")
 
-        urls: list[str] = [url for url in links if url.strip()]
-        print(f"[INFO] Запуск анализа для {len(urls)} URL (validator)...")
-        results = analyzer.analyze_urls_batch(urls)
-        print(f"[INFO] Анализ завершён. Получено результатов: {len(results)}")
-
+        # Анализ найденных ссылок
+        results = analyzer.analyze_urls_batch(links)
         analyzer.save_results(results)
-        print("[INFO] Результаты анализа сохранены в файлы (если настроено).")
+        print(
+            f"[INFO] Анализ завершён для запроса '{query}'. Получено результатов: {len(results)}"
+        )
 
+        # Сохранение в БД подходящих ссылок
         for res in results:
             url_raw: str | None = res.get("normalized_url")
             priority: int | None = res.get("total_score")
@@ -113,8 +116,9 @@ async def main():
                 total_errors += 1
                 print(f"[ERROR] Не удалось сохранить ссылку {normalized_link}: {e}")
 
+    # Итоговая статистика
     print("\n[INFO] === ИТОГОВАЯ СТАТИСТИКА ===")
-    print(f"Обработано запросов: {len(queries_links)}")
+    print(f"Обработано запросов: {total_queries}")
     print(f"Успешно сохранено записей в БД: {total_saved}")
     print(f"Ошибок при сохранении: {total_errors}")
     print("[INFO] Программа завершена.")
