@@ -73,7 +73,7 @@ async def main():
         print(f"\n[INFO] Обработка запроса #{total_queries}: '{query}'")
 
         # Поиск ссылок для текущего запроса
-        queries_links = search_queries([query], limit=limit, max_workers=1)
+        queries_links = search_queries([query], limit=limit, max_workers=10)
         links = queries_links.get(query, [])
 
         if not links:
