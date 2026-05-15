@@ -126,6 +126,7 @@ class Applicant(Base):
     region: Mapped[str] = mapped_column(String)
     contact: Mapped[str] = mapped_column(String)
     content: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[ReportStatuses] = mapped_column(default=ReportStatuses.unanswered)
 
 
 class Item(Base):
