@@ -118,7 +118,7 @@ class Complaint(Base):
     status: Mapped[ReportStatuses] = mapped_column(default=ReportStatuses.unanswered)
 
 
-class Applicant:
+class Applicant(Base):
     __tablename__ = "applicants"
 
     ## Complaint does not refer to a specific user. ##
