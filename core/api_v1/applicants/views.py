@@ -31,12 +31,12 @@ applicants_router: APIRouter = APIRouter(
 async def new_applicant_handler(
     applicant: Annotated[ApplicantModel, Body()],
 ) -> Response:
-    applicant_db_model: Applicant = Applicant()
-    applicant_db_model.name = applicant.name
-    applicant_db_model.contact = applicant.contact
-    applicant_db_model.region = applicant.region
-    applicant_db_model.content = applicant.content
-
+    applicant_db_model: Applicant = Applicant(
+        name=applicant.name,
+        contact=applicant.contact,
+        region=applicant.region,
+        content=applicant.content,
+    )
     try:
         await CRUD.add(applicant_db_model).execute()
     except SQLAlchemyError:
