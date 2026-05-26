@@ -39,7 +39,10 @@ async def save_all_users_to_xlsx(filename: str = "Users.xlsx") -> None:
 
 async def save_all_links_to_xlsx(filename: str = "Links.xlsx") -> None:
     links_result: Result = (
-        await CRUD.get(Link).join(User, Link.user_id == User.id).execute()
+        await CRUD.get(Link)
+        .where(Link.is_prohibited is True)
+        .join(User, Link.user_id == User.id)
+        .execute()
     )
     links: list[Link] = list(links_result.scalars().all())
 
