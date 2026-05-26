@@ -134,7 +134,7 @@ async def first_unverified_handler(
 
             link_query_result: Result = (
                 await CRUD.get(Link, session=session)
-                .where(Link.is_prohibited.is_(None))
+                .where(Link.is_prohibited.is_(None), Link.user_id.is_(None))
                 .order_by(Link.priority.desc())
                 .limit(1)
                 .with_for_update()
