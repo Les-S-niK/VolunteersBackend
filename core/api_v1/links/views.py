@@ -124,6 +124,7 @@ async def first_unverified_handler(
             already_taken_link_result: Result = (
                 await CRUD.get(Link, session=session)
                 .where(Link.user_id == user.id, Link.is_prohibited.is_(None))
+                .limit(1)
                 .execute()
             )
             already_taken_link: Link | None = (
