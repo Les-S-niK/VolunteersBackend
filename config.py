@@ -54,14 +54,14 @@ class ApiSettings(BaseSettings):
 class StaticImagesSettings(BaseSettings):
     DIR_PATH: Annotated[
         str, Field(default=..., title="Path to a directory with static images files.")
-    ] = "/home/source/Projects/Volunteers/images/"
+    ] = "/var/www/images/"
     API_URI: Annotated[
         str, Field(default="/images", title="URL path to the static storage.")
-    ] = "/shop/images"
+    ] = "/images"
     API_URL: Annotated[
         str,
         Field(
-            default=f"http://{ApiSettings().HOST}:{ApiSettings().PORT}{API_URI}",
+            default=f"https://{ApiSettings().HOST}:{ApiSettings().PORT}{API_URI}",
             title="URL path to the static storage.",
         ),
     ]
@@ -156,10 +156,10 @@ def get_db_settings() -> DBSettings:
 def get_cors_origins() -> list[str]:
     return [
         ## Local server CORS origins. ##
-        "http://192.168.2.58:80",
-        "https://192.168.2.58:80",
-        "http://192.168.2.58",
-        "https://192.168.2.58",
+        "http://192.168.1.59:80",
+        "https://192.168.1.59:80",
+        "http://192.168.1.59",
+        "https://192.168.1.59",
         ## Other CORS origins. ( Local ) ##
         "http://127.0.0.1:80",
         "http://localhost:80",

@@ -137,8 +137,4 @@ async def all_items_handler(
     except SQLAlchemyError:
         raise internal_server_error
     database_items: list[ItemModel] = list(result.scalars().all())
-    for item in database_items:
-        old_image_url: str = item.image_url
-        item.image_url = f"{static_settings.API_URL}/{old_image_url}"
-
     return database_items
