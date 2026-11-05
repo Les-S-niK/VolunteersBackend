@@ -114,4 +114,5 @@ def test_change_password_same_as_old(session, valid_credentials):
         json=payload,
         headers=headers,
     )
-    assert_no_content(response, 204)
+    assert response.status_code == 400
+    assert "отличаться" in response.json()["detail"]

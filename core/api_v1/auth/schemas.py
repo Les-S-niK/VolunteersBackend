@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 USER_ID_KEY: str = "user_id"
 CITY_ID_KEY: str = "city_id"
@@ -139,3 +139,17 @@ class ChangePasswordModel(BaseModel):
             examples=["NewStrongestPassword4321"],
         ),
     ]
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: SecretStr) -> SecretStr:
+        password = value.get_secret_value()
+        if len(password) < 10:
+            raise ValueError("Новый пароль должен быть не короче 10 символов")
+        if len(password) > 128:
+            raise ValueError("Новый пароль должен быть не длиннее 128 символов")
+        if not any(character.isalpha() for character in password):
+            raise ValueError("Новый пароль должен содержать буквы")
+        if not any(character.isdigit() for character in password):
+            raise ValueError("Новый пароль должен содержать цифры")
+        return value

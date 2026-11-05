@@ -8,9 +8,24 @@ class ComplaintModel(BaseModel):
     ## User may not login in the API to send complaints. ##
 
     ## I should change complaint type to Enum but no one knows all the complaint types that will be in the application. Yep. ##
-    type: Annotated[str, Field(default=..., title="Type", examples=["Person", "Group"])]
+    type: Annotated[
+        str,
+        Field(
+            default=...,
+            title="Type",
+            min_length=1,
+            max_length=80,
+            examples=["Person", "Group"],
+        ),
+    ]
     sender: Annotated[
-        str | None, Field(default=None, title="Sender", examples=["SenderName"])
+        str | None,
+        Field(
+            default=None,
+            title="Sender",
+            max_length=200,
+            examples=["SenderName"],
+        ),
     ]
     sender_contact: Annotated[
         str | None,
@@ -18,6 +33,7 @@ class ComplaintModel(BaseModel):
             default=None,
             title="Sender contact",
             description="Sender contact information for feedback.",
+            max_length=200,
             examples=["@myTelegramProfile"],
         ),
     ]

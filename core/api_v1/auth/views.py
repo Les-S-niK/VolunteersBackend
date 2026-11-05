@@ -286,9 +286,17 @@ async def change_password_handler(
             raise internal_server_error
 
         if not user_from_db or not verify_password(
-            password_data.old_password.get_secret_value(), user.password
+            password_data.old_password.get_secret_value(), user_from_db.password
         ):
             raise forbidden
+
+        if verify_password(
+            password_data.new_password.get_secret_value(), user_from_db.password
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Новый пароль должен отличаться от текущего.",
+            )
 
         try:
             await (
