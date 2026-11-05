@@ -182,42 +182,28 @@ def get_static_settings() -> StaticImagesSettings:
 
 
 @lru_cache
+def get_trusted_proxies() -> list[str]:
+    return ["127.0.0.1", "::1", "192.168.1.59"]
+
+
+@lru_cache
 def get_guard_setings() -> SecurityConfig:
     workdir: str = path.dirname(__file__)
     log_path: str = path.join(workdir, "core", "logger", "logs", "guard.log")
-    # FIXME: Enable secure options in production.
     return SecurityConfig(
         custom_log_file=log_path,
-        # rate_limit=200,
-        # auto_ban_threshold=20,
-        # auto_ban_duration=600,  ## 10 minutes
-        # enable_penetration_detection=True,
-        ## FIXME: Only for developnent.
-        passive_mode=True,
-        # whitelist=["127.0.0.1"],
-        # security_headers={
-        #     "enabled": True,
-        #     "hsts": {
-        #         "max_age": 31536000,  ## 1 year
-        #         "include_subdomains": True,
-        #         "preload": False,
-        #     },
-        ## TODO: Configure CSP.
-        #     "csp": {
-        #         "default-src": ["'self'"],
-        #         # "script-src": ["'self'", "https://trusted.cdn.com"],
-        #         # "style-src": ["'self'", "'unsafe-inline'"],
-        #         # "img-src": ["'self'", "data:", "https:"],
-        #         # "connect-src": ["'self'", "https://api.example.com"],
-        #         "frame-ancestors": ["'none'"],
-        #         "base-uri": ["'self'"],
-        #         "form-action": ["'self'"],
-        #     },
-        #     "frame_options": "DENY",
-        #     "content_type_options": "nosniff",
-        #     "xss_protection": "1; mode=block",
-        #     "referrer_policy": "strict-origin-when-cross-origin",
-        #     "permissions_policy": "geolocation=(), microphone=(), camera=()",
-        # },
+        passive_mode=False,
+        rate_limit=200,
+        rate_limit_window=60,
+        enable_rate_limiting=True,
+        enable_penetration_detection=False,
+        security_headers={
+            "enabled": True,
+            "hsts": {
+                "max_age": 31536000,
+                "include_subdomains": True,
+                "preload": False,
+            },
+        },
     )
 
