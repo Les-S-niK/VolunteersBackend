@@ -142,11 +142,10 @@ async def first_unverified_handler(
                 .execute()
             )
             first_unverified_link: Link | None = link_query_result.scalar_one_or_none()
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             await session.rollback()
             raise internal_server_error
 
-        print("After SELECT")
         if not first_unverified_link:
             return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -157,7 +156,7 @@ async def first_unverified_handler(
                 .values(user_id=user.id)
                 .execute()
             )
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             await session.rollback()
             raise internal_server_error
 
